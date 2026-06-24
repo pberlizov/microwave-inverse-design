@@ -40,6 +40,23 @@ from mw_inv.fdfd import Grid, solve
 from mw_inv.fom import evaluate
 from mw_inv.geometry import CavityParams, Materials, build_scene
 
+_C0 = 2.99792458e8  # speed of light, m/s
+
+
+def skin_depth_m(freq_hz: float, eps_real: float, eps_imag: float) -> float:
+    """Power penetration depth (1/e of absorbed power) of a plane wave in a medium with
+    relative permittivity eps_real + i*eps_imag, in metres.
+
+    Exact: alpha = (omega/c) * |eps|^1/2 * sin(theta/2) is the field attenuation
+    constant (theta = arg(eps')), and the power 1/e depth is 1/(2 alpha). This is the
+    length scale a grain is large or small *relative to* -- the quantity that decides
+    whether the field penetrates the grain (absorption rises with eps'') or is expelled
+    from it (self-shielding, absorption falls)."""
+    mag = float(np.hypot(eps_real, eps_imag))
+    theta = float(np.arctan2(eps_imag, eps_real))
+    alpha = (2.0 * np.pi * freq_hz / _C0) * np.sqrt(mag) * np.sin(theta / 2.0)
+    return float("inf") if alpha <= 0 else 1.0 / (2.0 * alpha)
+
 
 # ---------------------------------------------------------------------------
 # 1. Frequency sweep (real EM)
@@ -128,6 +145,70 @@ def loss_response(
         r = evaluate(solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy), scene)
         out.append(LossPoint(float(epp), r.p_target, r.selectivity))
     return out
+
+
+# ---------------------------------------------------------------------------
+# 2c. Grain size vs skin depth: where does the absorption turnover happen?
+# ---------------------------------------------------------------------------
+
+@dataclass
+class GrainRow:
+    diameter_m: float            # 2 * inclusion radius
+    turnover_eps_imag: float     # eps''* at peak mean absorbed power density (nan if none)
+    skin_depth_at_turnover_m: float
+    ratio_d_over_delta: float    # grain diameter / skin depth at the turnover
+    monotonic: bool              # True -> no interior peak in range (runaway-prone)
+    eps_imag: np.ndarray
+    mean_power_density: np.ndarray
+
+
+def grain_size_sweep(
+    grid: Grid,
+    radius_fracs: np.ndarray,
+    eps_imag_values: np.ndarray,
+    eps_real: float,
+    base_materials: Materials | None = None,
+    base_params: CavityParams | None = None,
+) -> list[GrainRow]:
+    """For each inclusion size, sweep the loss factor and find where the *mean absorbed
+    power density* in the grain turns over.
+
+    The turnover is the self-shielding onset. Because skin depth shrinks as eps'' grows,
+    sweeping eps'' at fixed grain size traverses the grain/skin-depth ratio, and the
+    turnover lands where the grain diameter ~ skin depth. Small grains (diameter < skin
+    depth even at the largest eps'') never turn over -> absorption keeps rising with
+    eps'' -> positive feedback -> runaway-prone. Large grains turn over early ->
+    self-limiting. A single centred inclusion is used so size varies without grains
+    merging."""
+    base = base_materials or Materials()
+    bp = base_params or CavityParams()
+    cell = grid.dx * grid.dy
+    rows: list[GrainRow] = []
+    for rf in radius_fracs:
+        params = replace(bp, inclusion_centers=((0.5, bp.charge_cy_frac),),
+                         inclusion_radius_frac=float(rf))
+        mean_p = np.empty(eps_imag_values.shape)
+        for i, epp in enumerate(eps_imag_values):
+            mats = replace(base, target=complex(eps_real, float(epp)))
+            scene = build_scene(grid, params, mats)
+            r = evaluate(solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy), scene)
+            n = int(scene.target_mask.sum())
+            mean_p[i] = r.p_target / (n * cell) if n else 0.0
+        i_peak = int(np.argmax(mean_p))
+        monotonic = i_peak >= len(mean_p) - 1
+        eps_star = float(eps_imag_values[i_peak])
+        delta = skin_depth_m(bp.freq_hz, eps_real, eps_star)
+        diameter = 2.0 * rf * min(grid.Lx, grid.Ly)
+        rows.append(GrainRow(
+            diameter_m=diameter,
+            turnover_eps_imag=float("nan") if monotonic else eps_star,
+            skin_depth_at_turnover_m=delta,
+            ratio_d_over_delta=diameter / delta if np.isfinite(delta) else 0.0,
+            monotonic=monotonic,
+            eps_imag=np.asarray(eps_imag_values, dtype=float),
+            mean_power_density=mean_p,
+        ))
+    return rows
 
 
 @dataclass

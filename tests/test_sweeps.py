@@ -12,8 +12,10 @@ from mw_inv.geometry import Materials  # noqa: E402
 from mw_inv.sweeps import (  # noqa: E402
     EpsTModel,
     frequency_sweep,
+    grain_size_sweep,
     loss_response,
     runaway_curve,
+    skin_depth_m,
 )
 
 GRID = Grid(nx=71, ny=71, Lx=0.36, Ly=0.36)
@@ -61,6 +63,32 @@ def test_thermal_response_is_self_limiting():
     assert run.T_steady[0] == pytest.approx(298.0, abs=1.0)
     assert np.all(np.diff(run.T_steady) >= -1.0)  # monotone up in drive
     assert run.T_steady[-1] > run.T_steady[0]
+
+
+def test_skin_depth_decreases_with_loss():
+    f = 2.45e9
+    d_low = skin_depth_m(f, 8.0, 0.3)
+    d_high = skin_depth_m(f, 8.0, 8.0)
+    assert d_low > d_high > 0                      # more loss -> shallower penetration
+    assert d_high < 0.05 and d_low > 0.05          # ~mm vs ~cm-dm scale at 2.45 GHz
+    assert np.isinf(skin_depth_m(f, 8.0, 0.0))     # lossless -> infinite penetration
+
+
+def test_grain_crossover_larger_grains_self_limit_sooner():
+    """Larger grains hit the absorption turnover at a *lower* loss factor; the smallest
+    grain may not turn over at all (runaway-prone). Turnover ~ grain size ~ skin depth."""
+    epps = np.geomspace(0.1, 8.0, 10)
+    rows = grain_size_sweep(GRID, np.array([0.04, 0.11]), epps, eps_real=8.0,
+                            base_materials=MATS)
+    small, large = rows
+    assert large.diameter_m > small.diameter_m
+    # large grain must turn over within range
+    assert not large.monotonic
+    # and at a lower loss factor than the small grain (which may be monotonic)
+    small_star = np.inf if small.monotonic else small.turnover_eps_imag
+    assert large.turnover_eps_imag < small_star
+    # turnover lands at grain ~ skin depth (order unity, generous bounds for 2D/discrete)
+    assert 0.3 < large.ratio_d_over_delta < 6.0
 
 
 if __name__ == "__main__":

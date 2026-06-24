@@ -66,15 +66,28 @@ digitised measurement**. It is anchored to these qualitative primary facts:
   (Salsman et al. 1996: a pyrite grain in calcite generates interface tensile stress
   exceeding rock strength).
 
-### Two non-obvious results from the sweeps
+### Three non-obvious results from the sweeps
 1. **Frequency is a strong free knob.** Across ±4% of the ISM band, `pyrite_in_calcite`
    selectivity moves 0.38–0.64 — retuning the source rivals the geometry optimizer.
 2. **Absorption is self-limiting in ε″ (hence in T).** Absorbed power peaks at an
    impedance/skin-depth-matched ε″\* ≈ 0.4–0.6 for grains of this size and then *falls*
    (field expulsion). So a strongly-heating grain does **not** run away unboundedly — it
-   self-regulates once ε″ passes the optimum. Unbounded runaway requires grains ≪ skin
-   depth, where absorption keeps rising with ε″. Disseminated pyrite (ε″≈0.3) sits just
+   self-regulates once ε″ passes the optimum. Disseminated pyrite (ε″≈0.3) sits just
    below ε″\*, i.e. near-optimally matched already.
+3. **The runaway/self-limiting boundary is grain size vs skin depth**
+   (`scripts/run_grain_sweep.py`). The power penetration (skin) depth at 2.45 GHz in
+   pyrite ranges ~184 mm (ε″=0.3) down to **~7.6 mm at loss tangent 1**. Sweeping ε″ at
+   fixed grain size traverses the grain/skin-depth ratio, and the absorption turnover
+   lands at **grain diameter ≈ skin depth** (measured: d/δ collapses to **1.8 ± 0.4**
+   across grain sizes). Consequence:
+   - **Large grains (≳ a few cm): self-limiting** — they turn over at low ε″ and never
+     heat away.
+   - **Small grains (≲ skin depth at max loss, ~mm scale — i.e. real disseminated
+     grains): monotonic** — absorption keeps rising with ε″ (with temperature) through
+     the whole physical range, so the feedback stays positive and the grain is
+     **runaway-prone**. This is exactly why finely disseminated sulphides (Salsman's
+     pyrite-in-calcite) are the canonical thermally-assisted-liberation target: they sit
+     on the runaway-prone side of the boundary.
 
 ## Important caveats
 
