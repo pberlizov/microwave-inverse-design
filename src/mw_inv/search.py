@@ -108,3 +108,79 @@ def optuna_search(
 
 def best(trials: list[Trial]) -> Trial:
     return max(trials, key=lambda t: t.selectivity)
+
+
+# ---------------------------------------------------------------------------
+# High-dimensional tuner-field search.
+#
+# The 6 named knobs above are low-dimensional enough that random search ties the
+# surrogate optimiser. The reconfigurable dielectric tuner (K lossless cells) is the
+# regime where a surrogate earns its keep: K ~ 16-24 continuous knobs, each cheap to
+# evaluate but with enough interaction that uniform random sampling wastes budget.
+# ---------------------------------------------------------------------------
+
+def _evaluate_field(
+    grid: Grid,
+    field: list[float],
+    base: CavityParams,
+    materials: Materials | None,
+) -> Trial:
+    params = replace(base, tuner_field=tuple(field))
+    scene = build_scene(grid, params, materials)
+    result = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy)
+    report = evaluate(result, scene)
+    return Trial(
+        params={"tuner_field": list(field)},
+        selectivity=report.selectivity,
+        contrast=report.contrast,
+        p_target=report.p_target,
+    )
+
+
+def random_field_search(
+    grid: Grid,
+    n_trials: int,
+    seed: int,
+    k: int = 16,
+    base: CavityParams | None = None,
+    materials: Materials | None = None,
+) -> list[Trial]:
+    rng = np.random.default_rng(seed)
+    base = base or CavityParams()
+    return [
+        _evaluate_field(grid, list(rng.uniform(0.0, 1.0, size=k)), base, materials)
+        for _ in range(n_trials)
+    ]
+
+
+def optuna_field_search(
+    grid: Grid,
+    n_trials: int,
+    seed: int,
+    k: int = 16,
+    base: CavityParams | None = None,
+    materials: Materials | None = None,
+) -> list[Trial]:
+    import warnings
+
+    import optuna
+
+    optuna.logging.set_verbosity(optuna.logging.WARNING)
+    base = base or CavityParams()
+    trials: list[Trial] = []
+
+    def objective(trial: "optuna.Trial") -> float:
+        field = [trial.suggest_float(f"c{i}", 0.0, 1.0) for i in range(k)]
+        t = _evaluate_field(grid, field, base, materials)
+        trial.set_user_attr("contrast", t.contrast)
+        trials.append(t)
+        return t.selectivity
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", optuna.exceptions.ExperimentalWarning)
+        study = optuna.create_study(
+            direction="maximize",
+            sampler=optuna.samplers.TPESampler(seed=seed, multivariate=True),
+        )
+        study.optimize(objective, n_trials=n_trials)
+    return trials

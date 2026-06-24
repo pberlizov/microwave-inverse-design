@@ -74,6 +74,38 @@ def test_lossy_target_outheats_gangue_per_area():
     assert rep.contrast > 1.0
 
 
+def _selectivity(grid, params, mats):
+    sc = build_scene(grid, params, mats)
+    return evaluate(solve(grid, sc.eps_r, sc.freq_hz, sc.source_xy), sc).selectivity
+
+
+def test_tuner_field_changes_absorption():
+    """The reconfigurable dielectric tuner (lossless) reshapes the mode and moves
+    selectivity away from the no-tuner baseline."""
+    from dataclasses import replace
+
+    grid = Grid(nx=81, ny=81, Lx=0.36, Ly=0.36)
+    mats = Materials.from_pair("pyrite_in_calcite")
+    base = CavityParams()
+    s0 = _selectivity(grid, base, mats)
+    s1 = _selectivity(grid, replace(base, tuner_field=(0.0, 1.0) * 4), mats)
+    assert abs(s1 - s0) > 1e-3                     # the tuner actually does something
+
+
+def test_field_search_runs_and_improves():
+    """Both samplers optimise the high-dim field above the no-tuner baseline."""
+    from mw_inv.search import optuna_field_search, random_field_search
+
+    grid = Grid(nx=61, ny=61, Lx=0.36, Ly=0.36)
+    mats = Materials.from_pair("pyrite_in_calcite")
+    base_sel = _selectivity(grid, CavityParams(), mats)
+    rnd = random_field_search(grid, n_trials=15, seed=0, k=8, materials=mats)
+    tpe = optuna_field_search(grid, n_trials=15, seed=0, k=8, materials=mats)
+    assert max(t.selectivity for t in rnd) > base_sel
+    assert max(t.selectivity for t in tpe) > base_sel
+    assert len(rnd) == 15 and len(tpe) == 15
+
+
 def test_material_pairs_probe_opposite_regimes():
     """The cited finding: transparent gangue -> selectivity ~saturated untuned;
     matched-eps' disseminated absorber -> much lower untuned selectivity."""

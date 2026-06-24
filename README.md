@@ -56,10 +56,36 @@ By contrast, when the absorber sits in transparent gangue (`magnetite_in_quartz`
 selectivity is ~0.996 *before any tuning*: material contrast already does the work and
 geometry adds little. Honest scope, not a universal win.
 
-**Note on the optimizer:** in the easy regime random search ties TPE; in the hard
-`pyrite_in_calcite` regime TPE edges ahead (0.672 vs 0.657). The surrogate/BO machinery
-from the photonics project only starts to pay off once the problem is non-saturated —
-and more so at higher dimension / cost (3D, broadband, EM-thermal).
+**Note on the optimizer:** with only these 6 named knobs, random search ties TPE — the
+problem is too low-dimensional to separate them. That changes once the actuator is
+high-dimensional (next section).
+
+![Untuned vs tuned fields and absorbed power](docs/img/fields.png)
+
+## High-dimensional optimization: where the surrogate earns its keep
+
+`python scripts/run_field_search.py --materials pyrite_in_calcite --trials 120 --k 16`
+(≈30 s) → `data/field_search.json`. Replacing the 6 named knobs with a **reconfigurable
+dielectric tuner** — a row of K=16 lossless cells near the top wall, each a continuous
+permittivity knob the optimizer shapes to steer the cavity mode — gives a 16-dimensional
+problem. Here the surrogate (TPE) **separates cleanly from random**, averaged over 3 seeds:
+
+| Sampler | Best selectivity (mean of 3 seeds) |
+|---|---|
+| Random | 0.712 |
+| **TPE (multivariate)** | **0.728** |
+
+The gap (+0.016) is modest, but the efficiency gap is not: **TPE reaches random's final
+quality in ~17% of the budget** (≈20 of 120 trials). And the tuner itself is a better
+actuator than the hand-parametrized geometry — it lifts `pyrite_in_calcite` selectivity
+to ~0.73 vs 0.67 for the 6-knob search and 0.54 untuned.
+
+![TPE vs random on the 16-cell tuner field](docs/img/field_search.png)
+
+This is the honest version of the "BO earns its keep" claim inherited from the
+[nanophotonics sibling](https://github.com/pberlizov/nanophotonics-inverse-design):
+surrogate optimization pays off when the design space is high-dimensional with
+interacting knobs, not on a handful of well-separated ones.
 
 ## Frequency and temperature sweeps
 
@@ -80,6 +106,8 @@ self-limiting heating — not unbounded thermal runaway** — for grains larger 
 depth. (Selectivity, separately, keeps rising with ε″.) True runaway needs grains ≪ skin
 depth so absorption keeps climbing with ε″; this slice flags that regime rather than
 modelling it. Details and citations: [docs/MATERIALS.md](docs/MATERIALS.md).
+
+![Frequency sweep and absorption-vs-loss-factor](docs/img/sweeps.png)
 
 ## Grain size vs skin depth — what sets the runaway boundary
 
@@ -111,6 +139,8 @@ liberation target — they sit on the runaway-prone side of the grain-size/skin-
 boundary, and it falls straight out of the forward model. (2D disks vs a 1D plane-wave
 skin depth, plus grid discreteness, put the collapse near d/δ≈1.8 rather than exactly 1.)
 
+![Grain-size/skin-depth crossover](docs/img/grain_sweep.png)
+
 ## What the physics actually is
 
 - **Forward model** ([src/mw_inv/fdfd.py](src/mw_inv/fdfd.py)): 2D frequency-domain FDFD
@@ -125,24 +155,30 @@ skin depth, plus grid discreteness, put the collapse near d/δ≈1.8 rather than
 - **Materials** ([src/mw_inv/materials.py](src/mw_inv/materials.py)): cited complex
   permittivities for magnetite, pyrite, quartz, calcite, packaged as two `MaterialPair`s.
 - **Geometry** ([src/mw_inv/geometry.py](src/mw_inv/geometry.py)): a metal cavity, a feed
-  stub, an ore charge (gangue rectangle with disseminated target inclusions), and an
-  optional internal PEC baffle. Low-dimensional by design — the relaxed field-uniformity
-  argument means we optimize *selectivity*, not volume uniformity.
+  stub, an ore charge (gangue rectangle with disseminated target inclusions), an optional
+  internal PEC baffle, and a reconfigurable **dielectric tuner field** (the high-dim knob
+  set). The relaxed field-uniformity argument means we optimize *selectivity*, not volume
+  uniformity.
 - **Search** ([src/mw_inv/search.py](src/mw_inv/search.py)): Optuna TPE + a random-search
-  control, the reusable pattern from the sibling repo.
+  control. Low-dim named knobs (`*_search`) and a high-dim tuner field (`*_field_search`).
 
 ## Quick start
 
 ```bash
 cd ~/microwave-inverse-design
-python3 -m pip install -r requirements.txt        # numpy scipy optuna (+ matplotlib)
+python3 -m pip install -r requirements.txt        # numpy scipy optuna (+ matplotlib>=3.11)
 python3 scripts/run_demo.py --materials pyrite_in_calcite     # one forward solve + FOM
-python3 scripts/run_search.py --trials 80 --materials pyrite_in_calcite   # optimize + baseline
+python3 scripts/run_search.py --trials 80 --materials pyrite_in_calcite   # 6-knob: random ties TPE
+python3 scripts/run_field_search.py --materials pyrite_in_calcite --k 16  # 16-dim: TPE beats random
 python3 scripts/run_sweeps.py --materials pyrite_in_calcite   # freq + loss/thermal sweeps
 python3 scripts/run_grain_sweep.py --materials pyrite_in_calcite  # grain-size/skin-depth crossover
 python3 scripts/plot_fields.py --materials pyrite_in_calcite  # -> data/fields.npz (+ fields.png)
-python3 -m pytest tests/ -q                         # 5 sanity checks
+python3 -m pytest tests/ -q                         # 14 sanity checks
 ```
+
+> **Figures:** committed plots live in [docs/img/](docs/img/). To regenerate them you need
+> `matplotlib >= 3.11` (earlier versions hit a `savefig` RecursionError on CPython 3.14);
+> all scripts still emit their `.json`/`.npz` data if matplotlib is absent or too old.
 
 ## Limitations (what this is NOT)
 

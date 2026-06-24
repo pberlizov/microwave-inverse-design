@@ -63,6 +63,16 @@ class CavityParams:
         (0.40, 0.58), (0.60, 0.58), (0.50, 0.70),
     )
     inclusion_radius_frac: float = 0.05
+    # Reconfigurable dielectric tuner: a row of lossless cells in a band near the top
+    # wall. Each value in [0,1] sets that cell's permittivity (0 -> air, 1 -> eps_max),
+    # reshaping the cavity mode without absorbing. Empty = no tuner. This is the
+    # high-dimensional knob set where a surrogate optimiser earns its keep.
+    tuner_field: tuple[float, ...] = ()
+    tuner_eps_max: float = 12.0
+    tuner_y_frac: float = 0.90        # band centre (y)
+    tuner_h_frac: float = 0.06        # band height
+    tuner_x0_frac: float = 0.10       # band spans x in [x0, x1]
+    tuner_x1_frac: float = 0.90
 
 
 @dataclass
@@ -109,6 +119,22 @@ def build_scene(grid: Grid, params: CavityParams, materials: Materials | None = 
         eps_r[disk] = mats.target
         target_mask |= disk
         gangue_mask &= ~disk
+
+    # --- Optional reconfigurable dielectric tuner band (lossless) ---
+    if params.tuner_field:
+        n = len(params.tuner_field)
+        y0 = (params.tuner_y_frac - 0.5 * params.tuner_h_frac) * grid.Ly
+        y1 = (params.tuner_y_frac + 0.5 * params.tuner_h_frac) * grid.Ly
+        x0 = params.tuner_x0_frac * grid.Lx
+        x1 = params.tuner_x1_frac * grid.Lx
+        band_y = (YY >= y0) & (YY <= y1)
+        for k, v in enumerate(params.tuner_field):
+            cx0 = x0 + (x1 - x0) * k / n
+            cx1 = x0 + (x1 - x0) * (k + 1) / n
+            cell = band_y & (XX >= cx0) & (XX < cx1)
+            # value in [0,1] -> real permittivity in [1, eps_max]; lossless tuner.
+            eps_val = 1.0 + float(np.clip(v, 0.0, 1.0)) * (params.tuner_eps_max - 1.0)
+            eps_r[cell] = complex(eps_val, 0.0)
 
     # --- Optional internal PEC baffle (a tuning vane) ---
     pec_mask = np.zeros((grid.ny, grid.nx), dtype=bool)

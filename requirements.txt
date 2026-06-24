@@ -2,7 +2,7 @@
 numpy>=1.26
 scipy>=1.11
 optuna>=3.6
-# Optional: figures. NOTE matplotlib 3.10 on CPython 3.14 has a savefig RecursionError;
-# scripts/plot_fields.py always writes data/fields.npz regardless and degrades gracefully.
-matplotlib>=3.8
+# Optional: figures. matplotlib < 3.11 has a savefig RecursionError on CPython 3.14;
+# 3.11 fixes it. Scripts degrade gracefully (write .npz/.json) if matplotlib is missing.
+matplotlib>=3.11
 pytest>=8.0
