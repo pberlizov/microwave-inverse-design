@@ -1,0 +1,8 @@
+# Thin-slice runs on numpy/scipy/optuna only -- no MEEP, no conda.
+numpy>=1.26
+scipy>=1.11
+optuna>=3.6
+# Optional: figures. NOTE matplotlib 3.10 on CPython 3.14 has a savefig RecursionError;
+# scripts/plot_fields.py always writes data/fields.npz regardless and degrades gracefully.
+matplotlib>=3.8
+pytest>=8.0

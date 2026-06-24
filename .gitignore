@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+# Generated experiment artifacts (re-creatable via scripts/).
+data/*.npz
+data/*.png
+data/*.json
