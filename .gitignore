@@ -8,3 +8,7 @@ __pycache__/
 data/*.npz
 data/*.png
 data/*.json
+
+# Generated directories (large, machine-specific, re-creatable).
+data/runs/
+data/design_exports/

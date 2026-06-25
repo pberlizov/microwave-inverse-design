@@ -75,14 +75,26 @@ class SolveResult:
     freq_hz: float
     eps_r: np.ndarray       # the permittivity map used, shape (ny, nx)
     grid: Grid
+    mu_r: np.ndarray | None = None
 
 
-def _build_operator(grid: Grid, eps_r: np.ndarray, k0: float) -> sp.csr_matrix:
-    """Assemble the sparse Helmholtz operator A with PEC (Dirichlet) walls."""
+def _build_operator(
+    grid: Grid,
+    eps_r: np.ndarray,
+    k0: float,
+    mu_r: np.ndarray | None = None,
+) -> sp.csr_matrix:
+    """Assemble the sparse Helmholtz operator A with PEC (Dirichlet) walls.
+
+    TM wave equation: div(1/mu grad Ez) + k0^2 eps Ez = source.  When ``mu_r``
+    is omitted, mu = 1 everywhere (legacy scalar-permittivity mode).
+    """
     nx, ny = grid.nx, grid.ny
     dx2 = grid.dx ** 2
     dy2 = grid.dy ** 2
     n = nx * ny
+    if mu_r is None:
+        mu_r = np.ones_like(eps_r, dtype=complex)
 
     rows: list[int] = []
     cols: list[int] = []
@@ -96,16 +108,15 @@ def _build_operator(grid: Grid, eps_r: np.ndarray, k0: float) -> sp.csr_matrix:
     for iy in range(ny):
         for ix in range(nx):
             p = grid.index(ix, iy)
-            # PEC wall nodes: E_z = 0.
             if ix == 0 or ix == nx - 1 or iy == 0 or iy == ny - 1:
                 add(p, p, 1.0)
                 continue
-            # Interior 5-point Laplacian + k0^2 eps term.
-            add(p, p, -2.0 / dx2 - 2.0 / dy2 + (k0 ** 2) * eps_r[iy, ix])
-            add(p, grid.index(ix + 1, iy), 1.0 / dx2)
-            add(p, grid.index(ix - 1, iy), 1.0 / dx2)
-            add(p, grid.index(ix, iy + 1), 1.0 / dy2)
-            add(p, grid.index(ix, iy - 1), 1.0 / dy2)
+            inv_mu = 1.0 / mu_r[iy, ix]
+            add(p, p, inv_mu * (-2.0 / dx2 - 2.0 / dy2) + (k0 ** 2) * eps_r[iy, ix])
+            add(p, grid.index(ix + 1, iy), inv_mu / dx2)
+            add(p, grid.index(ix - 1, iy), inv_mu / dx2)
+            add(p, grid.index(ix, iy + 1), inv_mu / dy2)
+            add(p, grid.index(ix, iy - 1), inv_mu / dy2)
 
     return sp.csr_matrix((vals, (rows, cols)), shape=(n, n), dtype=complex)
 
@@ -116,23 +127,25 @@ def solve(
     freq_hz: float,
     source_xy: tuple[float, float],
     source_amp: float = 1.0,
+    mu_r: np.ndarray | None = None,
 ) -> SolveResult:
-    """Solve for E_z given a permittivity map, frequency and a point feed.
+    """Solve for E_z given permittivity/permeability maps, frequency and a point feed.
 
-    ``eps_r`` is shape (ny, nx), complex (Im > 0 == lossy). ``source_xy`` is the
-    feed location in metres. Returns the complex field on the grid.
+    ``eps_r`` is shape (ny, nx), complex (Im > 0 == lossy). Optional ``mu_r`` adds
+    magnetic propagation and loss (important for magnetite). Returns the complex field.
     """
     if eps_r.shape != (grid.ny, grid.nx):
         raise ValueError(f"eps_r shape {eps_r.shape} != ({grid.ny}, {grid.nx})")
+    if mu_r is not None and mu_r.shape != eps_r.shape:
+        raise ValueError(f"mu_r shape {mu_r.shape} != eps_r shape {eps_r.shape}")
 
     omega = 2.0 * np.pi * freq_hz
     k0 = omega / C0
-    A = _build_operator(grid, eps_r, k0)
+    A = _build_operator(grid, eps_r, k0, mu_r)
 
     b = np.zeros(grid.nx * grid.ny, dtype=complex)
     sx, sy = source_xy
     six, siy = grid.nearest_node(sx, sy)
-    # Keep the feed off the PEC wall (where E_z is pinned to 0).
     six = min(max(six, 1), grid.nx - 2)
     siy = min(max(siy, 1), grid.ny - 2)
     cell_area = grid.dx * grid.dy
@@ -140,15 +153,36 @@ def solve(
 
     Ez_flat = spla.spsolve(A, b)
     Ez = Ez_flat.reshape(grid.ny, grid.nx)
-    return SolveResult(Ez=Ez, freq_hz=freq_hz, eps_r=eps_r, grid=grid)
+    return SolveResult(Ez=Ez, freq_hz=freq_hz, eps_r=eps_r, grid=grid, mu_r=mu_r)
+
+
+def magnetic_field_components(result: SolveResult) -> tuple[np.ndarray, np.ndarray]:
+    """In-plane H from E_z for TM mode (e^{-i omega t} convention).
+
+    H_x = (1/(i omega mu0 mu)) dEz/dy,  H_y = -(1/(i omega mu0 mu)) dEz/dx.
+    """
+    grid = result.grid
+    mu = result.mu_r if result.mu_r is not None else np.ones_like(result.eps_r)
+    omega = 2.0 * np.pi * result.freq_hz
+    coeff = 1.0 / (1j * omega * MU0 * mu)
+    dEz_dy = np.zeros_like(result.Ez)
+    dEz_dx = np.zeros_like(result.Ez)
+    dEz_dy[1:-1, :] = (result.Ez[2:, :] - result.Ez[:-2, :]) / (2.0 * grid.dy)
+    dEz_dx[:, 1:-1] = (result.Ez[:, 2:] - result.Ez[:, :-2]) / (2.0 * grid.dx)
+    return coeff * dEz_dy, -coeff * dEz_dx
 
 
 def absorbed_power_density(result: SolveResult) -> np.ndarray:
-    """Time-averaged absorbed power density p = 0.5 * omega * eps0 * Im(eps) * |E|^2.
+    """Time-averaged absorbed power density including dielectric and magnetic loss.
 
-    Units W/m^3 (2D, per unit length in z). Absolute scale is arbitrary for the
-    selectivity FOM since constant prefactors cancel in the ratio.
+    p = 0.5 omega (eps0 eps'' |E|^2 + mu0 mu'' |H|^2)  [W/m^3 in 2D per unit z].
     """
     omega = 2.0 * np.pi * result.freq_hz
     eps_imag = np.clip(result.eps_r.imag, 0.0, None)
-    return 0.5 * omega * EPS0 * eps_imag * np.abs(result.Ez) ** 2
+    p_e = 0.5 * omega * EPS0 * eps_imag * np.abs(result.Ez) ** 2
+    if result.mu_r is None or np.allclose(result.mu_r.imag, 0.0):
+        return p_e
+    hx, hy = magnetic_field_components(result)
+    mu_imag = np.clip(result.mu_r.imag, 0.0, None)
+    p_m = 0.5 * omega * MU0 * mu_imag * (np.abs(hx) ** 2 + np.abs(hy) ** 2)
+    return p_e + p_m

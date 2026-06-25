@@ -1,0 +1,14 @@
+{
+  "label": "massive_pyrite",
+  "source": "QEMSCAN",
+  "fractions": {
+    "pyrite": 0.65,
+    "quartz": 0.20,
+    "calcite": 0.10
+  },
+  "gangue_mineral": "calcite",
+  "texture": {
+    "class": "massive",
+    "mean_grain_radius_m": 0.008
+  }
+}

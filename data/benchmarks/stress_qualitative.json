@@ -1,0 +1,17 @@
+{
+  "description": "Qualitative trend checks from Salsman 1996 and Kingman texture studies.",
+  "grain_size_penalty": {
+    "source": "Kingman: fine disseminated grains bleed heat; coarse grains preferred",
+    "radius_fine_m": 5.0e-5,
+    "radius_opt_m": 2.5e-3,
+    "radius_coarse_m": 8.0e-3,
+    "expect_fine_lt_opt": true,
+    "expect_opt_ge_coarse_fraction": 0.5
+  },
+  "thermoelastic": {
+    "source": "Salsman 1996 pyrite-in-calcite differential expansion",
+    "target_alpha_1_per_K": 14.0e-6,
+    "gangue_alpha_1_per_K": 6.0e-6,
+    "expect_target_alpha_gt_gangue": true
+  }
+}

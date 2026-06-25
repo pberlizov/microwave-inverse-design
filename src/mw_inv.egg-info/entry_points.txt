@@ -1,0 +1,5 @@
+[console_scripts]
+mw-inv-benchmarks = mw_inv.cli.benchmarks:main
+mw-inv-demo = mw_inv.cli.demo:main
+mw-inv-pipeline = mw_inv.cli.pipeline:main
+mw-inv-search = mw_inv.cli.search:main

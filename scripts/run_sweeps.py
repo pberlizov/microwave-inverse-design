@@ -69,13 +69,7 @@ def main() -> None:
     print(f"  selectivity is monotonic  : {sel_l[0]:.3f} -> {sel_l[-1]:.3f} (rises despite power peak)")
 
     # --- 2b. Lumped thermal model: eps''(T) ramps -> SELF-LIMITING (not runaway) ---
-    eps_t = EpsTModel(
-        eps_real=pair.target.real,
-        eps_imag_ref=pair.target.imag,
-        activation_K=1000.0,
-        max_loss_tangent=0.6,
-        ramps_with_T=True,
-    )
+    eps_t = materials.eps_t_model("target")
     temps = np.linspace(298.0, 1300.0, 60)
     cooling_coeff = 5.0e-3  # arbitrary Newton-cooling units (shape, not absolute, matters)
     run = runaway_curve(grid, eps_t, cooling_coeff, temps_K=temps, base_materials=materials)

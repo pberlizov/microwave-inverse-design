@@ -21,12 +21,12 @@ from mw_inv.fdfd import Grid, absorbed_power_density, solve  # noqa: E402
 from mw_inv.fom import evaluate  # noqa: E402
 from mw_inv.geometry import CavityParams, Materials, build_scene  # noqa: E402
 from mw_inv.materials import PAIRS  # noqa: E402
-from mw_inv.search import SEARCH_SPACE, best, optuna_search  # noqa: E402
+from mw_inv.search import best, optuna_search  # noqa: E402
 
 
 def fields_for(params: CavityParams, grid: Grid, materials: Materials) -> dict:
     scene = build_scene(grid, params, materials)
-    res = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy)
+    res = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
     rep = evaluate(res, scene)
     return {
         "eps_imag": scene.eps_r.imag,
@@ -80,7 +80,7 @@ def main() -> None:
 
     trials = optuna_search(grid, n_trials=80, seed=1903, materials=materials)
     b = best(trials)
-    tuned_params = CavityParams(**{k: b.params[k] for k in SEARCH_SPACE})
+    tuned_params = CavityParams(**b.params)
     tuned = fields_for(tuned_params, grid, materials)
 
     out_dir = Path("data")

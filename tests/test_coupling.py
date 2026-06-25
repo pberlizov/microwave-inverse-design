@@ -1,0 +1,73 @@
+"""Coupling efficiency metrics (backlog A0).
+
+Selectivity is not actionable on its own: a design can post a high target *fraction*
+while coupling almost no power into the charge. These tests pin the energy-consistent
+coupling metric and the floor penalty that stops the search exploiting it.
+"""
+
+from __future__ import annotations
+
+import sys
+from dataclasses import replace
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from mw_inv.design_evaluator import EvaluationConfig, evaluate_design  # noqa: E402
+from mw_inv.fdfd import Grid, solve  # noqa: E402
+from mw_inv.fom import evaluate  # noqa: E402
+from mw_inv.geometry import CavityParams, Materials, build_scene  # noqa: E402
+
+GRID = Grid(nx=61, ny=61, Lx=0.36, Ly=0.36)
+MATS = Materials.from_pair("pyrite_in_calcite")
+
+
+def _fom(params: CavityParams):
+    sc = build_scene(GRID, params, MATS)
+    return evaluate(solve(GRID, sc.eps_r, sc.freq_hz, sc.source_xy, mu_r=sc.mu_r), sc)
+
+
+def test_coupling_metrics_invariants():
+    f = _fom(CavityParams())
+    assert 0.0 <= f.coupling_eff <= 1.0
+    assert 0.0 <= f.pec_loss_fraction <= 1.0
+    # Energy split is consistent: total = charge + structural.
+    assert f.p_abs_total == pytest.approx(f.p_total_charge + f.p_structural, rel=1e-9)
+
+
+def test_no_pec_design_couples_fully():
+    """With no internal PEC structure, all absorbed power lands in the charge."""
+    f = _fom(CavityParams())
+    assert f.coupling_eff > 0.99
+    assert f.pec_loss_fraction < 0.01
+
+
+def test_baffle_exposes_coupling_pathology():
+    """The Im(eps)=1e6 'PEC' baffle is a strong *absorber*, not a lossless reflector:
+    it can raise selectivity while dumping nearly all power into structure. Coupling
+    efficiency surfaces this where selectivity alone hides it."""
+    base = _fom(CavityParams())
+    baffled = _fom(replace(CavityParams(), baffle_len_frac=0.4))
+    assert baffled.coupling_eff < 0.1            # almost no power reaches the charge
+    assert baffled.pec_loss_fraction > 0.9       # ... it is dumped in the "PEC" baffle
+    assert baffled.p_total_charge < base.p_total_charge * 1e-3
+    # And the trap: selectivity does NOT warn you.
+    assert baffled.selectivity >= base.selectivity - 0.05
+
+
+def test_coupling_floor_penalises_low_coupling_designs():
+    cfg = EvaluationConfig(materials=MATS, mode="em", objective="em_selectivity",
+                           coupling_floor=0.5)
+    good = evaluate_design(GRID, CavityParams(), cfg)
+    bad = evaluate_design(GRID, replace(CavityParams(), baffle_len_frac=0.4), cfg)
+    assert not good.coupling_floor_applied
+    assert bad.coupling_floor_applied
+    # Penalised score is a fraction of the raw objective.
+    assert bad.score == pytest.approx(bad.em_selectivity * cfg.coupling_score_factor)
+    assert bad.score < good.score
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__, "-q"]))

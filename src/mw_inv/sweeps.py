@@ -81,7 +81,7 @@ def frequency_sweep(
     out: list[FreqPoint] = []
     for f in freqs_hz:
         scene = build_scene(grid, replace(params, freq_hz=float(f)), materials)
-        result = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy)
+        result = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
         r = evaluate(result, scene)
         out.append(
             FreqPoint(float(f), r.selectivity, r.contrast, r.p_target, r.p_total_charge)
@@ -93,29 +93,7 @@ def frequency_sweep(
 # 2. Temperature dependence + thermal runaway (parametric eps''(T))
 # ---------------------------------------------------------------------------
 
-@dataclass(frozen=True)
-class EpsTModel:
-    """Arrhenius-like ramp of the loss factor: eps''(T) grows with temperature,
-    capped at a maximum loss tangent. eps' held fixed (a simplification; eps' also
-    rises in reality). Defaults loosely anchored to "loss tangent approaches ~1 at
-    high T" for a strongly microwave-active sulphide; NOT a fit to a specific ore."""
-
-    eps_real: float
-    eps_imag_ref: float          # eps'' at reference temperature
-    T_ref_K: float = 298.0
-    activation_K: float = 1000.0  # Ea/k; larger = steeper ramp (gradual across 300-1300K)
-    max_loss_tangent: float = 0.6
-    ramps_with_T: bool = True     # False -> inert phase (e.g. calcite gangue)
-
-    def eps_imag(self, T_K: float) -> float:
-        if not self.ramps_with_T:
-            return self.eps_imag_ref
-        factor = np.exp(self.activation_K * (1.0 / self.T_ref_K - 1.0 / T_K))
-        e_imag = self.eps_imag_ref * factor
-        return float(min(e_imag, self.max_loss_tangent * self.eps_real))
-
-    def eps(self, T_K: float) -> complex:
-        return self.eps_real + 1j * self.eps_imag(T_K)
+from mw_inv.dielectric_data import EpsTModel  # re-export for scripts/tests
 
 
 @dataclass
@@ -137,12 +115,13 @@ def loss_response(
     falls as the grain expels the field (self-shielding). 'More loss' is not 'more heat'.
     Selectivity, by contrast, keeps rising. eps' is held fixed."""
     params = params or CavityParams()
-    base = base_materials or Materials()
+    base = base_materials or Materials.from_pair("pyrite_in_calcite")
+    base = replace(base, target_mu=1.0 + 0.0j)
     out: list[LossPoint] = []
     for epp in eps_imag_values:
         mats = replace(base, target=complex(eps_real, float(epp)))
         scene = build_scene(grid, params, mats)
-        r = evaluate(solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy), scene)
+        r = evaluate(solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r), scene)
         out.append(LossPoint(float(epp), r.p_target, r.selectivity))
     return out
 
@@ -185,13 +164,13 @@ def grain_size_sweep(
     cell = grid.dx * grid.dy
     rows: list[GrainRow] = []
     for rf in radius_fracs:
-        params = replace(bp, inclusion_centers=((0.5, bp.charge_cy_frac),),
+        params = replace(bp, inclusion_offsets_frac=((0.0, 0.0),),
                          inclusion_radius_frac=float(rf))
         mean_p = np.empty(eps_imag_values.shape)
         for i, epp in enumerate(eps_imag_values):
             mats = replace(base, target=complex(eps_real, float(epp)))
             scene = build_scene(grid, params, mats)
-            r = evaluate(solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy), scene)
+            r = evaluate(solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r), scene)
             n = int(scene.target_mask.sum())
             mean_p[i] = r.p_target / (n * cell) if n else 0.0
         i_peak = int(np.argmax(mean_p))
@@ -237,7 +216,7 @@ def power_vs_temperature(
     for i, T in enumerate(temps_K):
         mats = replace(base, target=eps_t.eps(float(T)))
         scene = build_scene(grid, params, mats)
-        result = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy)
+        result = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
         p_gen[i] = evaluate(result, scene).p_target
     return p_gen
 

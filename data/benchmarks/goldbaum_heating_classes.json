@@ -1,0 +1,78 @@
+{
+  "description": "Goldbaum / Forster et al. (CEEComm 2022, IMPC 2022) HMAP heating classes from 42 bench ores.",
+  "source": "Goldbaum PhD thesis Table 6-1; Forster et al. CEEComm 2022 Table 2",
+  "hmap_minerals": [
+    "bornite", "chalcopyrite", "galena", "hematite", "magnetite",
+    "molybdenite", "pentlandite", "pyrite", "pyrrhotite"
+  ],
+  "classes": [
+    {
+      "id": "I_poor",
+      "hmap_wt_percent_min": 0.0,
+      "hmap_wt_percent_max": 2.0,
+      "rate_min_C_per_min": 13.0,
+      "rate_max_C_per_min": 40.0,
+      "rate_mean_C_per_min": 23.0
+    },
+    {
+      "id": "II_fair",
+      "hmap_wt_percent_min": 2.0,
+      "hmap_wt_percent_max": 5.0,
+      "rate_min_C_per_min": 21.0,
+      "rate_max_C_per_min": 133.0,
+      "rate_mean_C_per_min": 76.0
+    },
+    {
+      "id": "III_good",
+      "hmap_wt_percent_min": 5.0,
+      "hmap_wt_percent_max": 20.0,
+      "rate_min_C_per_min": 105.0,
+      "rate_max_C_per_min": 339.0,
+      "rate_mean_C_per_min": 159.0
+    },
+    {
+      "id": "IV_excellent",
+      "hmap_wt_percent_min": 20.0,
+      "hmap_wt_percent_max": 100.0,
+      "rate_min_C_per_min": 150.0,
+      "rate_max_C_per_min": 829.0,
+      "rate_mean_C_per_min": 559.0
+    }
+  ],
+  "benchmark_ores": [
+    {
+      "label": "synthetic_barren",
+      "hmap_wt_percent": 0.0,
+      "expected_class": "I_poor",
+      "fractions": {}
+    },
+    {
+      "label": "synthetic_low_hmap",
+      "hmap_wt_percent": 3.0,
+      "expected_class": "II_fair",
+      "fractions": {"pyrite": 0.03}
+    },
+    {
+      "label": "synthetic_mid_hmap",
+      "hmap_wt_percent": 10.0,
+      "expected_class": "III_good",
+      "fractions": {"pyrite": 0.08, "chalcopyrite": 0.02}
+    },
+    {
+      "label": "synthetic_high_hmap",
+      "hmap_wt_percent": 35.0,
+      "expected_class": "IV_excellent",
+      "fractions": {"pyrite": 0.20, "magnetite": 0.15}
+    },
+    {
+      "label": "disseminated_pyrite_porphyry",
+      "expected_class": "III_good",
+      "fractions": {"pyrite": 0.04, "chalcopyrite": 0.02}
+    },
+    {
+      "label": "massive_pyrite",
+      "expected_class": "IV_excellent",
+      "fractions": {"pyrite": 0.65}
+    }
+  ]
+}

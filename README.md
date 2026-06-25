@@ -11,6 +11,7 @@ processing.
 | **Runs on** | numpy + scipy + optuna (no MEEP, no conda) — `python scripts/run_search.py` |
 | **Sibling project** | [`nanophotonics-inverse-design`](https://github.com/pberlizov/nanophotonics-inverse-design) — reuses its search→evaluate→keep-best pattern |
 | **Frontier survey** | [docs/FRONTIER.md](docs/FRONTIER.md) |
+| **Maturity / WIP labels** | [docs/MATURITY.md](docs/MATURITY.md) — what is core vs stub |
 
 ---
 
@@ -145,35 +146,84 @@ skin depth, plus grid discreteness, put the collapse near d/δ≈1.8 rather than
 
 - **Forward model** ([src/mw_inv/fdfd.py](src/mw_inv/fdfd.py)): 2D frequency-domain FDFD
   Helmholtz solver for the out-of-plane field `E_z` in a PEC-walled metal cavity, with
-  complex permittivity `eps' + i·eps''`. Single sparse solve per design.
+  complex permittivity `eps' + i·eps''` and optional relative permeability `mu' + i·mu''`
+  (magnetite). Single sparse solve per design. Validated via
+  [src/mw_inv/validation.py](src/mw_inv/validation.py) (`python scripts/run_validation.py`).
 - **Physics swap vs. photonics:** the lossless dielectric `eps` of the splitter becomes
-  a **lossy** `eps'' > 0`, and the flux-split FOM becomes **absorbed power density**
-  `p = ½·ω·eps0·eps''·|E|²`. This is the term that does *not* exist in the nanophotonics
-  forward model — it is the substance of the port, not a parameter tweak.
+  a **lossy** medium, and the flux-split FOM becomes **absorbed power density**
+  `p = ½·ω·(ε₀·ε''·|E|² + μ₀·μ''·|H|²)`.
 - **FOM** ([src/mw_inv/fom.py](src/mw_inv/fom.py)): *selectivity* = fraction of charge
   absorption landing in the target phase; plus per-area *contrast* (target vs gangue).
-- **Materials** ([src/mw_inv/materials.py](src/mw_inv/materials.py)): cited complex
-  permittivities for magnetite, pyrite, quartz, calcite, packaged as two `MaterialPair`s.
-- **Geometry** ([src/mw_inv/geometry.py](src/mw_inv/geometry.py)): a metal cavity, a feed
-  stub, an ore charge (gangue rectangle with disseminated target inclusions), an optional
-  internal PEC baffle, and a reconfigurable **dielectric tuner field** (the high-dim knob
-  set). The relaxed field-uniformity argument means we optimize *selectivity*, not volume
-  uniformity.
-- **Search** ([src/mw_inv/search.py](src/mw_inv/search.py)): Optuna TPE + a random-search
-  control. Low-dim named knobs (`*_search`) and a high-dim tuner field (`*_field_search`).
+- **Materials** ([src/mw_inv/materials.py](src/mw_inv/materials.py),
+  [src/mw_inv/dielectric_data.py](src/mw_inv/dielectric_data.py)): cited ε and μ with
+  tabulated ε(T) anchors; `Materials.from_pair(..., target_T_K=773)` for heated target.
+- **Geometry** ([src/mw_inv/geometry.py](src/mw_inv/geometry.py)): **EXPERIMENTAL**
+  manufacturable *parameters* (wall feed, stub, plate, bed) — still a 2D point source
+  and Im(ε) PEC, not matched ports. Legacy baffle + 16-cell tuner (deprecated bound).
+- **Search** ([src/mw_inv/search.py](src/mw_inv/search.py)): Optuna TPE + random control
+  over manufacturable geometry (~10 continuous + feed wall). Use ``--legacy`` for the
+  old 6-knob baffle search; ``run_field_search.py`` is deprecated.
+- **Thermal coupling** ([src/mw_inv/thermal.py](src/mw_inv/thermal.py)): quasi-steady 2D
+  `k∇²T − h(T−T_amb) + q(x,y) = 0` with `q` from FDFD and ε(T) feedback from
+  `dielectric_data` tables (`python scripts/run_thermal.py`). Transient runaway timing
+  via `--transient`; geometry search on ΔT / heat selectivity via `run_thermal_search.py`.
+- **Ensemble layouts** ([src/mw_inv/ensemble.py](src/mw_inv/ensemble.py)): random grain
+  positions in the bed; robust search via `run_ensemble_search.py` (step 5).
+- **Multi-objective search**: Pareto selectivity vs charge coupling via
+  `run_multi_search.py` (step 6).
+- **Frequency-robust search**: ISM-band selectivity (mean or worst-case) via
+  `run_freq_robust_search.py`; thermal + layout (+ optional freq) via
+  `run_thermal_ensemble_search.py`.
+- **FDTD cross-check** ([src/mw_inv/meep_compare.py](src/mw_inv/meep_compare.py)):
+  optional MEEP 2D (**experimental**); primitive 3D in [meep_3d.py](src/mw_inv/meep_3d.py)
+  (**experimental**); legacy extrusion (**WIP**, quasi-3D only).
+- **openEMS** ([src/mw_inv/openems_export.py](src/mw_inv/openems_export.py)): **EXPERIMENTAL**
+  runnable Octave script (CSXCAD geometry, lumped port, field dump) — run locally with openEMS.
+- **Lab phantoms** ([src/mw_inv/phantom.py](src/mw_inv/phantom.py), [phantom_data.py](src/mw_inv/phantom_data.py)):
+  **EXPERIMENTAL** recipe-linked saline ε, FDFD + thermal ΔT predictions, bench compare via JSON.
 
 ## Quick start
 
 ```bash
 cd ~/microwave-inverse-design
 python3 -m pip install -r requirements.txt        # numpy scipy optuna (+ matplotlib>=3.11)
+python3 -m pip install -e .                       # optional: enables `mw-inv-*` CLI entrypoints
 python3 scripts/run_demo.py --materials pyrite_in_calcite     # one forward solve + FOM
-python3 scripts/run_search.py --trials 80 --materials pyrite_in_calcite   # 6-knob: random ties TPE
-python3 scripts/run_field_search.py --materials pyrite_in_calcite --k 16  # 16-dim: TPE beats random
+python3 scripts/run_search.py --trials 80 --materials pyrite_in_calcite   # manufacturable geometry
+mw-inv-pipeline --materials pyrite_in_calcite --trials 24    # same as scripts/run_pipeline.py
+python3 scripts/run_search.py --legacy --trials 80                      # old baffle search
+python3 scripts/run_field_search.py --materials pyrite_in_calcite --k 16  # deprecated upper bound
 python3 scripts/run_sweeps.py --materials pyrite_in_calcite   # freq + loss/thermal sweeps
 python3 scripts/run_grain_sweep.py --materials pyrite_in_calcite  # grain-size/skin-depth crossover
+python3 scripts/run_thermal.py --materials pyrite_in_calcite    # spatial EM–thermal coupling
+python3 scripts/run_thermal.py --transient --t-end 90           # transient runaway timing
+python3 scripts/run_thermal_search.py --objective delta_T --trials 24  # optimise ΔT (slower)
+python3 scripts/run_ensemble_search.py --materials pyrite_in_calcite --trials 20  # robust layouts
+python3 scripts/run_multi_search.py --materials pyrite_in_calcite --trials 40     # Pareto FOM
+python3 scripts/run_freq_robust_search.py --metric min --trials 24               # ISM band robust
+python3 scripts/run_thermal_ensemble_search.py --freq-robust --realizations 4    # thermal robust
+python3 scripts/run_meep_compare.py --materials pyrite_in_calcite   # MEEP 2D + primitive 3D check
+python3 scripts/run_phantom_study.py                              # gel phantom ε + thermal ΔT
+python3 scripts/run_phantom_study.py --compare data/lab_measurements.example.json
+python3 scripts/export_openems.py                               # runnable openEMS Octave model
+python3 scripts/export_design.py --search data/search_summary.json  # optimised → openEMS bundle
+python3 scripts/run_solver_triangulation.py --search data/search_summary.json
+python3 scripts/run_validation_gate.py --materials pyrite_in_calcite   # solver gate + exports
+python3 scripts/run_stress_search.py --materials pyrite_in_calcite     # liberation stress FOM
+python3 scripts/run_ore_profile.py --all                               # HMAP heating classes
+python3 scripts/ingest_ore_profile.py data/ores/disseminated_pyrite_porphyry.json  # QEMSCAN ingest
+python3 scripts/run_search.py --ore data/ores/disseminated_pyrite_porphyry.json --trials 24
+python3 scripts/ingest_measured_dielectrics.py data/templates/measured_dielectrics.template.json
+python3 scripts/ingest_probe_measurements.py data/measured_eps.template.json
+python3 scripts/generate_openems_stub.py                          # alias for export_openems
 python3 scripts/plot_fields.py --materials pyrite_in_calcite  # -> data/fields.npz (+ fields.png)
-python3 -m pytest tests/ -q                         # 14 sanity checks
+python3 scripts/run_pipeline.py --materials pyrite_in_calcite --trials 24  # Tier-1: bench→search→gate→manifest
+python3 scripts/run_pipeline.py --ore data/ores/massive_pyrite.json --trials 24  # Tier-2: deposit-grounded
+python3 scripts/run_design_eval.py --preset composite:liberation  # unified FOM report
+python3 scripts/run_materials_catalog.py --pairs          # HMAP + gangue ε catalog
+python3 scripts/run_benchmarks.py                                    # literature benchmark suite
+python3 scripts/run_validation.py              # forward-model validation suite -> data/validation_report.json
+python3 -m pytest tests/ -q                         # sanity checks
 ```
 
 > **Figures:** committed plots live in [docs/img/](docs/img/). To regenerate them you need
@@ -184,17 +234,18 @@ python3 -m pytest tests/ -q                         # 14 sanity checks
 
 This is a thin slice. Do **not** read quantitative engineering claims into it.
 
-- **2D, single-frequency, steady-state.** No 3D, no broadband, no transient.
-- **Only a lumped thermal model.** `run_sweeps.py` adds a 0-D energy balance with a
-  parametric ε″(T) ramp (self-limiting heating result), but the field FOM itself is still
-  absorbed EM power density — no *spatial* heat diffusion, no coupled EM-thermal time
-  stepping, no fracture mechanics. ε″(T) is parametric, not a measured curve.
+- **2D FDFD core; 3D is cross-check only.** Primitive MEEP 3D and openEMS export are
+  **experimental** (point/lumped excitation, not matched coax ports). Legacy MEEP extrusion
+  remains **WIP**.
+- **Lumped thermal model in ``run_sweeps.py``** — plus spatial coupling in
+  ``run_thermal.py`` (steady 2D diffusion + ε(T) feedback, representative k and
+  volumetric cooling) and optional transient stepping with periodic EM refresh.
 - **No fluidized bed / discrete conductive particles.** The charge is a static
   two-phase dielectric, not a moving bed of conductive grains.
 - **Real but uncertain dielectric values.** Permittivities are cited literature values
-  ([docs/MATERIALS.md](docs/MATERIALS.md)), but mineral permittivity varies with grain
-  size, form, porosity and temperature — representative, not exact for a given ore.
-  **Temperature dependence and magnetite's magnetic loss are not modelled.**
+  ([docs/MATERIALS.md](docs/MATERIALS.md)), with ε(T) anchor tables for pyrite and
+  magnetite. **Magnetite magnetic loss (μ″) is now included**; temperature still enters
+  via tabulated ε(T), not a full multi-physics ore model.
 - **FDFD, not FDTD.** Chosen so the slice runs with no MEEP/conda. The production
   engine is openEMS / MEEP / FDTDX (see [docs/FRONTIER.md](docs/FRONTIER.md)).
 - **The market/policy thesis is unverified here.** Claims about executive orders,

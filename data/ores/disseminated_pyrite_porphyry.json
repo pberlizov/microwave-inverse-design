@@ -1,0 +1,15 @@
+{
+  "label": "disseminated_pyrite_porphyry",
+  "source": "QEMSCAN",
+  "fractions": {
+    "pyrite": 0.04,
+    "chalcopyrite": 0.02,
+    "quartz": 0.55,
+    "feldspar": 0.20
+  },
+  "gangue_mineral": "quartz",
+  "texture": {
+    "class": "disseminated",
+    "mean_grain_radius_m": 0.0025
+  }
+}

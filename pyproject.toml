@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mw-inv"
+version = "0.1.0+thinslice"
+description = "Microwave applicator inverse design for selective mineral heating (thin slice)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = [
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "optuna>=3.6",
+]
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.11"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+mw-inv-demo = "mw_inv.cli.demo:main"
+mw-inv-search = "mw_inv.cli.search:main"
+mw-inv-benchmarks = "mw_inv.cli.benchmarks:main"
+mw-inv-pipeline = "mw_inv.cli.pipeline:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

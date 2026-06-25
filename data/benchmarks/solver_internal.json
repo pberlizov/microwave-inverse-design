@@ -1,0 +1,14 @@
+{
+  "description": "Internal EM forward-model checks with literature-backed reference values.",
+  "cavity_resonance": {
+    "source": "validation.py empty PEC cavity TM mode peak",
+    "Lx_m": 0.36,
+    "Ly_m": 0.36,
+    "expected_peak_hz": 1.06e9,
+    "peak_rtol": 0.08
+  },
+  "polyakova_bulk_vs_scene": {
+    "source": "Polyakova 2010 bulk pyrite != disseminated scene (by design)",
+    "min_bulk_to_scene_ratio": 100.0
+  }
+}

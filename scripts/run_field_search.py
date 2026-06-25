@@ -1,11 +1,11 @@
-"""High-dimensional tuner-field search: does the surrogate optimiser beat random?
+"""High-dimensional tuner-field search (legacy upper bound).
+
+**Deprecated for primary use** — prefer ``run_search.py`` (manufacturable plate +
+wall feed + bed position).  This script remains as a surrogate upper bound: the
+16-cell lossless dielectric tuner is not physically realizable but shows how much
+mode shaping a non-manufacturable actuator could buy.
 
     python scripts/run_field_search.py --materials pyrite_in_calcite --trials 120 --k 16
-
-The 6 named geometry knobs are too low-dimensional to separate TPE from random (see
-run_search.py). This optimises a K-cell reconfigurable dielectric tuner (K continuous
-knobs) where the surrogate should pull ahead. Runs both samplers across several seeds and
-reports the averaged best-so-far. Writes data/field_search.json (+ png if matplotlib).
 """
 
 from __future__ import annotations
@@ -62,6 +62,7 @@ def main() -> None:
 
     print(f"=== High-dim tuner-field search ({args.materials}, K={args.k}, "
           f"{args.trials} trials x {args.seeds} seeds, {elapsed:.1f}s) ===")
+    print("  (deprecated upper bound — use run_search.py for manufacturable geometry)")
     print(f"  random best (mean) : {rnd_final:.4f}")
     print(f"  TPE    best (mean) : {tpe_final:.4f}")
     print(f"  gap (TPE - random) : {gap:+.4f}  "

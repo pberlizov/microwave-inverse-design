@@ -1,0 +1,217 @@
+"""Promotion tiers — trust boundary for exports and claims.
+
+Tiers (cumulative requirements):
+
+  literature_grounded  — benchmark suite passes (materials forward model)
+  fdfd_optimised       — validation gate passes (optimised beats untuned on FDFD)
+  solver_triangulated  — external solver data present and gate solver checks pass
+  bench_calibrated     — phantom probe ε drift within tolerance (optional bench JSON)
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
+
+from mw_inv.validation_gate import ValidationGateReport
+
+
+class PromotionTier(str, Enum):
+    UNRANKED = "unranked"
+    LITERATURE_GROUNDED = "literature_grounded"
+    FDFD_OPTIMISED = "fdfd_optimised"
+    SOLVER_TRIANGULATED = "solver_triangulated"
+    BENCH_CALIBRATED = "bench_calibrated"
+
+
+TIER_ORDER: tuple[PromotionTier, ...] = (
+    PromotionTier.UNRANKED,
+    PromotionTier.LITERATURE_GROUNDED,
+    PromotionTier.FDFD_OPTIMISED,
+    PromotionTier.SOLVER_TRIANGULATED,
+    PromotionTier.BENCH_CALIBRATED,
+)
+
+
+class PromotionError(PermissionError):
+    """Raised when an action requires a higher promotion tier."""
+
+
+def tier_rank(tier: PromotionTier | str) -> int:
+    t = PromotionTier(tier) if isinstance(tier, str) else tier
+    return TIER_ORDER.index(t)
+
+
+def meets_tier(current: PromotionTier | str, required: PromotionTier | str) -> bool:
+    return tier_rank(current) >= tier_rank(required)
+
+
+def assert_tier_at_least(
+    current: PromotionTier | str,
+    required: PromotionTier | str,
+    *,
+    action: str = "proceed",
+) -> None:
+    if not meets_tier(current, required):
+        raise PromotionError(
+            f"Cannot {action}: promotion tier {current!s} "
+            f"is below required {required!s}. "
+            f"Run scripts/run_pipeline.py or improve gate/benchmark/bench inputs."
+        )
+
+
+@dataclass(frozen=True)
+class PromotionAssessment:
+    tier: PromotionTier
+    requirements: dict[str, bool]
+    notes: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "tier": self.tier.value,
+            "requirements": dict(self.requirements),
+            "notes": list(self.notes),
+        }
+
+
+def _external_solver_data_present(triangulation_rows: list[Any] | None) -> bool:
+    if not triangulation_rows:
+        return False
+    for row in triangulation_rows:
+        for attr in ("meep_2d_selectivity", "meep_3d_primitive_selectivity", "openems_selectivity"):
+            if getattr(row, attr, None) is not None:
+                return True
+    return False
+
+
+def _solver_gate_checks_ok(gate: ValidationGateReport | None) -> bool:
+    if gate is None:
+        return False
+    for check in gate.checks:
+        if check.name.endswith("_rel_err") or check.name.endswith("_rank_match"):
+            if not check.passed:
+                return False
+    return True
+
+
+def _bench_calibration_ok(
+    phantom_label: str | None,
+    measured_eps_path: str | Path | None,
+    *,
+    max_real_drift: float = 1.5,
+    max_imag_drift: float = 0.5,
+) -> bool:
+    if not phantom_label or not measured_eps_path:
+        return False
+    from pathlib import Path
+
+    path = Path(measured_eps_path)
+    if not path.is_file():
+        return False
+    from mw_inv.phantom_calibration import compare_measured_vs_anchor
+
+    report = compare_measured_vs_anchor(phantom_label, path)
+    for row in report.get("comparisons", []):
+        if row.get("status") == "missing":
+            return False
+        if abs(float(row.get("drift_real", 0.0))) > max_real_drift:
+            return False
+        if abs(float(row.get("drift_imag", 0.0))) > max_imag_drift:
+            return False
+    return bool(report.get("comparisons"))
+
+
+def assess_promotion(
+    *,
+    benchmarks_passed: bool | None = None,
+    gate: ValidationGateReport | None = None,
+    triangulation_rows: list[Any] | None = None,
+    phantom_label: str | None = None,
+    measured_eps_path: str | None = None,
+) -> PromotionAssessment:
+    """Compute highest tier satisfied by available evidence."""
+    from pathlib import Path
+
+    lit = benchmarks_passed is True
+    fdfd = lit and gate is not None and gate.passed
+    has_ext = _external_solver_data_present(triangulation_rows)
+    solver_ok = fdfd and has_ext and _solver_gate_checks_ok(gate)
+    bench_ok = solver_ok and _bench_calibration_ok(
+        phantom_label,
+        measured_eps_path if measured_eps_path else None,
+    )
+
+    reqs = {
+        "literature_benchmarks": lit,
+        "fdfd_gate": fdfd,
+        "external_solver_validation": solver_ok,
+        "bench_phantom_calibration": bench_ok,
+    }
+    notes: list[str] = []
+    if fdfd and not has_ext:
+        notes.append("solver_triangulated requires MEEP/openEMS data — tier capped at fdfd_optimised")
+    if solver_ok and not bench_ok:
+        notes.append("bench_calibrated requires measured_eps.json within drift tolerance")
+
+    if bench_ok:
+        tier = PromotionTier.BENCH_CALIBRATED
+    elif solver_ok:
+        tier = PromotionTier.SOLVER_TRIANGULATED
+    elif fdfd:
+        tier = PromotionTier.FDFD_OPTIMISED
+    elif lit:
+        tier = PromotionTier.LITERATURE_GROUNDED
+    else:
+        tier = PromotionTier.UNRANKED
+        notes = ("Run benchmarks and validation gate to establish promotion tier.",)
+
+    return PromotionAssessment(tier=tier, requirements=reqs, notes=tuple(notes))
+
+
+def tier_from_manifest(manifest: dict[str, Any]) -> PromotionTier:
+    """Read tier from a run manifest (or compute from embedded reports)."""
+    if "promotion" in manifest and "tier" in manifest["promotion"]:
+        return PromotionTier(manifest["promotion"]["tier"])
+    return assess_promotion(
+        benchmarks_passed=manifest.get("benchmarks", {}).get("passed"),
+        gate=_gate_from_dict(manifest.get("gate")),
+        triangulation_rows=_rows_from_dict(manifest.get("triangulation", {})),
+        phantom_label=manifest.get("bench", {}).get("phantom_label"),
+        measured_eps_path=manifest.get("bench", {}).get("measured_eps_path"),
+    ).tier
+
+
+def _gate_from_dict(block: dict | None) -> ValidationGateReport | None:
+    if not block or "passed" not in block:
+        return None
+    from mw_inv.validation_gate import GateCheck
+
+    checks = [
+        GateCheck(name=c["name"], passed=c["passed"], detail=c.get("detail", ""))
+        for c in block.get("checks", [])
+    ]
+    return ValidationGateReport(
+        passed=bool(block["passed"]),
+        checks=checks,
+        rank_agreement=block.get("rank_agreement", {}),
+    )
+
+
+def _rows_from_dict(block: dict) -> list[Any] | None:
+    rows = block.get("rows")
+    if not rows:
+        return None
+
+    from mw_inv.solver_triangulation import SolverRow
+
+    out: list[SolverRow] = []
+    for r in rows:
+        out.append(SolverRow(
+            label=r["label"],
+            fdfd_selectivity=float(r["fdfd_selectivity"]),
+            meep_2d_selectivity=r.get("meep_2d_selectivity"),
+            meep_3d_primitive_selectivity=r.get("meep_3d_primitive_selectivity"),
+            openems_selectivity=r.get("openems_selectivity"),
+        ))
+    return out

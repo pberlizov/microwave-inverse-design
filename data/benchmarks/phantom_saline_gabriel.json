@@ -1,0 +1,20 @@
+{
+  "description": "Saline agar/glycerol phantom ε anchors for phantom_data.saline_eps regression.",
+  "source": "Gabriel 1996 salt-solution scaling; industrial gel phantom recipes",
+  "freq_hz": 2450000000.0,
+  "anchors": [
+    {"salt_wt_percent": 0.0, "eps_real": 4.5, "eps_imag": 0.06},
+    {"salt_wt_percent": 0.5, "eps_real": 7.0, "eps_imag": 0.35},
+    {"salt_wt_percent": 1.0, "eps_real": 10.5, "eps_imag": 1.2},
+    {"salt_wt_percent": 2.0, "eps_real": 16.0, "eps_imag": 3.5},
+    {"salt_wt_percent": 3.0, "eps_real": 22.0, "eps_imag": 7.0}
+  ],
+  "rtol_real": 0.01,
+  "rtol_imag": 0.01,
+  "monotonicity": {
+    "salt_wt_percent_lo": 0.0,
+    "salt_wt_percent_hi": 3.0,
+    "expect_eps_real_increase": true,
+    "expect_eps_imag_increase": true
+  }
+}

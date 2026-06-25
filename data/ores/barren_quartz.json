@@ -1,0 +1,14 @@
+{
+  "label": "barren_quartz",
+  "source": "assay",
+  "fractions": {
+    "quartz": 0.72,
+    "feldspar": 0.18,
+    "calcite": 0.05
+  },
+  "gangue_mineral": "quartz",
+  "texture": {
+    "class": "disseminated",
+    "mean_grain_radius_m": 0.0015
+  }
+}

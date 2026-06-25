@@ -13,31 +13,27 @@ quartz gangue) defined with citations in ``mw_inv.materials``; see docs/MATERIAL
 Use ``Materials.from_pair("pyrite_in_calcite")`` for the Salsman liberation system.
 Values still carry uncertainty (grain size, form, temperature) -- representative, not
 exact for a specific ore.
+
+Manufacturable parametrization (step 4): wall-mounted coax / waveguide feed, coax
+stub depth, movable PEC tuning plate, and bed position.
+
+**Maturity: EXPERIMENTAL** — parametrization only.  Excitation is still a single
+grid-node current (``fdfd.solve``); ``excitation='waveguide'`` widens the air stub
+pixel band only.  Internal metal uses Im(ε)→∞.  See ``docs/MATURITY.md``.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
 
 from mw_inv.fdfd import Grid
-from mw_inv.materials import DEFAULT_PAIR, PAIRS
+from mw_inv.materials import PAIRS, Materials
 
-
-@dataclass(frozen=True)
-class Materials:
-    # Background inside the cavity (air / vacuum).
-    background: complex = DEFAULT_PAIR.background
-    # Target mineral phase: strong microwave absorber (default: magnetite, ~12 - j1).
-    target: complex = DEFAULT_PAIR.target
-    # Gangue / waste rock: transparent low-loss (default: quartz, ~4.6 - j5e-4).
-    gangue: complex = DEFAULT_PAIR.gangue
-
-    @classmethod
-    def from_pair(cls, label: str) -> "Materials":
-        p = PAIRS[label]
-        return cls(background=p.background, target=p.target, gangue=p.gangue)
+FEED_WALLS: tuple[str, ...] = ("bottom", "left", "right", "top")
+EXCITATION_TYPES: tuple[str, ...] = ("coax", "waveguide")
 
 
 @dataclass
@@ -45,33 +41,57 @@ class CavityParams:
     """Geometry knobs the optimiser is allowed to move.
 
     All positions are fractions of the cavity size in [0, 1] so bounds are uniform.
+
+    **Manufacturable (default search path):**
+    - ``feed_wall`` + ``feed_along_frac`` + ``stub_depth_frac`` — coax or waveguide
+      injection along a cavity wall (point source at stub tip in FDFD).
+    - ``plate_*`` — movable PEC tuning plate (metal vane).
+    - ``charge_cx/cy_frac`` — ore bed position inside the cavity.
+
+    **Legacy (abstract):** ``feed_x/y_frac``, ``baffle_*``, ``tuner_field``.
     """
 
     freq_hz: float = 2.45e9            # ISM band industrial microwave frequency
-    feed_x_frac: float = 0.5           # feed position along x
-    feed_y_frac: float = 0.08          # feed position along y (near a wall = a stub)
-    baffle_x_frac: float = 0.5         # internal PEC baffle x-position
-    baffle_len_frac: float = 0.0       # baffle length (0 = no baffle)
-    baffle_gap_frac: float = 0.5       # where along the baffle the gap sits
-    # Fixed charge geometry (the ore bed) -- not optimised in the thin slice.
+
+    # --- Manufacturable excitation ---
+    feed_wall: str = "bottom"          # bottom | left | right | top
+    feed_along_frac: float = 0.5       # position along chosen wall [0, 1]
+    stub_depth_frac: float = 0.08      # coax / port inset from wall (fraction of span)
+    stub_width_frac: float = 0.04      # coax OD or waveguide mouth width
+    excitation: str = "coax"           # coax | waveguide — WIP: width only, not TE10 port
+
+    # Legacy feed (used only when feed_wall is empty string)
+    feed_x_frac: float = 0.5
+    feed_y_frac: float = 0.08
+
+    # --- Movable PEC tuning plate (replaces abstract baffle in search) ---
+    plate_cx_frac: float = 0.5
+    plate_cy_frac: float = 0.35
+    plate_len_frac: float = 0.0        # 0 = no plate
+    plate_angle_deg: float = 90.0       # 90° ≈ vertical vane
+
+    # --- Legacy internal PEC baffle (slot vane; kept for old scripts) ---
+    baffle_x_frac: float = 0.5
+    baffle_len_frac: float = 0.0
+    baffle_gap_frac: float = 0.5
+
+    # --- Ore bed (charge) geometry ---
     charge_cx_frac: float = 0.5
     charge_cy_frac: float = 0.62
     charge_w_frac: float = 0.42
     charge_h_frac: float = 0.30
-    # Target inclusions inside the charge (disseminated mineral grains).
-    inclusion_centers: tuple[tuple[float, float], ...] = (
-        (0.40, 0.58), (0.60, 0.58), (0.50, 0.70),
+    # Target grains as offsets from bed centre (move with charge_cx/cy_frac).
+    inclusion_offsets_frac: tuple[tuple[float, float], ...] = (
+        (-0.10, -0.04), (0.10, -0.04), (0.0, 0.08),
     )
     inclusion_radius_frac: float = 0.05
-    # Reconfigurable dielectric tuner: a row of lossless cells in a band near the top
-    # wall. Each value in [0,1] sets that cell's permittivity (0 -> air, 1 -> eps_max),
-    # reshaping the cavity mode without absorbing. Empty = no tuner. This is the
-    # high-dimensional knob set where a surrogate optimiser earns its keep.
+
+    # --- High-dimensional dielectric tuner (non-physical upper bound) ---
     tuner_field: tuple[float, ...] = ()
     tuner_eps_max: float = 12.0
-    tuner_y_frac: float = 0.90        # band centre (y)
-    tuner_h_frac: float = 0.06        # band height
-    tuner_x0_frac: float = 0.10       # band spans x in [x0, x1]
+    tuner_y_frac: float = 0.90
+    tuner_h_frac: float = 0.06
+    tuner_x0_frac: float = 0.10
     tuner_x1_frac: float = 0.90
 
 
@@ -79,17 +99,129 @@ class CavityParams:
 class Scene:
     grid: Grid
     eps_r: np.ndarray
+    mu_r: np.ndarray
     target_mask: np.ndarray      # bool (ny, nx): target mineral pixels
     gangue_mask: np.ndarray      # bool (ny, nx): gangue pixels
-    pec_mask: np.ndarray         # bool (ny, nx): internal PEC (baffle) pixels
+    pec_mask: np.ndarray         # bool (ny, nx): internal PEC (plate/baffle) pixels
     source_xy: tuple[float, float]
     freq_hz: float
     params: CavityParams = field(default_factory=CavityParams)
 
 
 # A large positive imaginary permittivity approximates a PEC region cheaply
-# without changing the solver (it forces |E|->0 inside the baffle).
+# without changing the solver (it forces |E|->0 inside the plate).
 _PEC_EPS = 1.0 + 1.0e6j
+
+
+def resolve_feed(params: CavityParams, grid: Grid) -> tuple[float, float]:
+    """Map wall + along-wall position + stub depth to a source (x, y) in metres."""
+    if not params.feed_wall:
+        return params.feed_x_frac * grid.Lx, params.feed_y_frac * grid.Ly
+    wall = params.feed_wall
+    if wall not in FEED_WALLS:
+        raise ValueError(f"feed_wall must be one of {FEED_WALLS}, got {wall!r}")
+    along = float(np.clip(params.feed_along_frac, 0.0, 1.0))
+    stub = float(np.clip(params.stub_depth_frac, 0.01, 0.45))
+    Lx, Ly = grid.Lx, grid.Ly
+    if wall == "bottom":
+        return along * Lx, stub * Ly
+    if wall == "top":
+        return along * Lx, (1.0 - stub) * Ly
+    if wall == "left":
+        return stub * Lx, along * Ly
+    return (1.0 - stub) * Lx, along * Ly
+
+
+def _stub_width(params: CavityParams, grid: Grid) -> float:
+    w = params.stub_width_frac
+    if params.excitation == "waveguide":
+        w = max(w, 0.08)
+    return w * min(grid.Lx, grid.Ly)
+
+
+def _rasterize_stub(
+    XX: np.ndarray,
+    YY: np.ndarray,
+    grid: Grid,
+    params: CavityParams,
+) -> np.ndarray:
+    """Air channel from wall to feed tip (coax jacket / waveguide mouth)."""
+    wall = params.feed_wall or "bottom"
+    half_w = 0.5 * _stub_width(params, grid)
+    along = params.feed_along_frac * (grid.Lx if wall in ("bottom", "top") else grid.Ly)
+    stub = params.stub_depth_frac
+    if wall == "bottom":
+        return (
+            (np.abs(XX - along) <= half_w)
+            & (YY >= 0.0)
+            & (YY <= stub * grid.Ly + grid.dy)
+        )
+    if wall == "top":
+        y0 = (1.0 - stub) * grid.Ly
+        return (np.abs(XX - along) <= half_w) & (YY >= y0 - grid.dy) & (YY <= grid.Ly)
+    if wall == "left":
+        return (
+            (np.abs(YY - along) <= half_w)
+            & (XX >= 0.0)
+            & (XX <= stub * grid.Lx + grid.dx)
+        )
+    x0 = (1.0 - stub) * grid.Lx
+    return (np.abs(YY - along) <= half_w) & (XX >= x0 - grid.dx) & (XX <= grid.Lx)
+
+
+def _rasterize_plate(
+    XX: np.ndarray,
+    YY: np.ndarray,
+    grid: Grid,
+    params: CavityParams,
+) -> np.ndarray:
+    """Movable PEC tuning plate as a thick line segment."""
+    if params.plate_len_frac <= 1e-3:
+        return np.zeros((grid.ny, grid.nx), dtype=bool)
+    cx = params.plate_cx_frac * grid.Lx
+    cy = params.plate_cy_frac * grid.Ly
+    half_len = 0.5 * params.plate_len_frac * min(grid.Lx, grid.Ly)
+    angle = math.radians(params.plate_angle_deg)
+    dx, dy = math.cos(angle), math.sin(angle)
+    px, py = XX - cx, YY - cy
+    along = px * dx + py * dy
+    perp = np.abs(px * (-dy) + py * dx)
+    half_w = max(0.6 * grid.dx, 0.004 * min(grid.Lx, grid.Ly))
+    return (np.abs(along) <= half_len) & (perp <= half_w)
+
+
+def _rasterize_legacy_baffle(
+    XX: np.ndarray,
+    YY: np.ndarray,
+    grid: Grid,
+    params: CavityParams,
+) -> np.ndarray:
+    """Legacy vertical slot baffle (abstract geometry)."""
+    if params.baffle_len_frac <= 1e-3:
+        return np.zeros((grid.ny, grid.nx), dtype=bool)
+    bx = params.baffle_x_frac * grid.Lx
+    blen = params.baffle_len_frac * grid.Ly
+    gap_center = params.baffle_gap_frac * grid.Ly
+    gap_half = 0.06 * grid.Ly
+    col = np.abs(XX - bx) <= (0.6 * grid.dx)
+    within = YY <= blen
+    not_gap = np.abs(YY - gap_center) > gap_half
+    return col & within & not_gap
+
+
+def _apply_pec(
+    eps_r: np.ndarray,
+    mu_r: np.ndarray,
+    mask: np.ndarray,
+    target_mask: np.ndarray,
+    gangue_mask: np.ndarray,
+) -> None:
+    if not mask.any():
+        return
+    eps_r[mask] = _PEC_EPS
+    mu_r[mask] = 1.0 + 0.0j
+    target_mask &= ~mask
+    gangue_mask &= ~mask
 
 
 def build_scene(grid: Grid, params: CavityParams, materials: Materials | None = None) -> Scene:
@@ -98,6 +230,7 @@ def build_scene(grid: Grid, params: CavityParams, materials: Materials | None = 
     XX, YY = np.meshgrid(x, y)  # shape (ny, nx)
 
     eps_r = np.full((grid.ny, grid.nx), mats.background, dtype=complex)
+    mu_r = np.full((grid.ny, grid.nx), mats.background_mu, dtype=complex)
     target_mask = np.zeros((grid.ny, grid.nx), dtype=bool)
     gangue_mask = np.zeros((grid.ny, grid.nx), dtype=bool)
 
@@ -108,19 +241,22 @@ def build_scene(grid: Grid, params: CavityParams, materials: Materials | None = 
     hh = 0.5 * params.charge_h_frac * grid.Ly
     charge = (np.abs(XX - cx) <= hw) & (np.abs(YY - cy) <= hh)
     eps_r[charge] = mats.gangue
+    mu_r[charge] = mats.gangue_mu
     gangue_mask |= charge
 
     # --- Target mineral inclusions inside the charge ---
     r = params.inclusion_radius_frac * min(grid.Lx, grid.Ly)
-    for fx, fy in params.inclusion_centers:
-        ix0, iy0 = fx * grid.Lx, fy * grid.Ly
+    for ox, oy in params.inclusion_offsets_frac:
+        ix0 = (params.charge_cx_frac + ox) * grid.Lx
+        iy0 = (params.charge_cy_frac + oy) * grid.Ly
         disk = ((XX - ix0) ** 2 + (YY - iy0) ** 2) <= r ** 2
-        disk &= charge  # inclusions only live inside the bed
+        disk &= charge
         eps_r[disk] = mats.target
+        mu_r[disk] = mats.target_mu
         target_mask |= disk
         gangue_mask &= ~disk
 
-    # --- Optional reconfigurable dielectric tuner band (lossless) ---
+    # --- Optional reconfigurable dielectric tuner band (lossless, non-manufacturable) ---
     if params.tuner_field:
         n = len(params.tuner_field)
         y0 = (params.tuner_y_frac - 0.5 * params.tuner_h_frac) * grid.Ly
@@ -132,35 +268,126 @@ def build_scene(grid: Grid, params: CavityParams, materials: Materials | None = 
             cx0 = x0 + (x1 - x0) * k / n
             cx1 = x0 + (x1 - x0) * (k + 1) / n
             cell = band_y & (XX >= cx0) & (XX < cx1)
-            # value in [0,1] -> real permittivity in [1, eps_max]; lossless tuner.
             eps_val = 1.0 + float(np.clip(v, 0.0, 1.0)) * (params.tuner_eps_max - 1.0)
             eps_r[cell] = complex(eps_val, 0.0)
+            mu_r[cell] = 1.0 + 0.0j
 
-    # --- Optional internal PEC baffle (a tuning vane) ---
+    # --- Coax / waveguide stub (air path from wall to feed) ---
+    if params.feed_wall:
+        stub = _rasterize_stub(XX, YY, grid, params)
+        eps_r[stub] = mats.background
+        mu_r[stub] = mats.background_mu
+
+    # --- Internal PEC: movable plate (preferred) or legacy baffle ---
     pec_mask = np.zeros((grid.ny, grid.nx), dtype=bool)
-    if params.baffle_len_frac > 1e-3:
-        bx = params.baffle_x_frac * grid.Lx
-        blen = params.baffle_len_frac * grid.Ly
-        gap_center = params.baffle_gap_frac * grid.Ly
-        gap_half = 0.06 * grid.Ly
-        col = np.abs(XX - bx) <= (0.6 * grid.dx)
-        within = (YY <= blen)
-        not_gap = np.abs(YY - gap_center) > gap_half
-        baffle = col & within & not_gap
-        eps_r[baffle] = _PEC_EPS
-        pec_mask |= baffle
-        # A PEC baffle overrides any material it crosses.
-        target_mask &= ~baffle
-        gangue_mask &= ~baffle
+    plate = _rasterize_plate(XX, YY, grid, params)
+    if plate.any():
+        pec_mask |= plate
+    elif params.baffle_len_frac > 1e-3:
+        pec_mask |= _rasterize_legacy_baffle(XX, YY, grid, params)
+    _apply_pec(eps_r, mu_r, pec_mask, target_mask, gangue_mask)
 
-    source_xy = (params.feed_x_frac * grid.Lx, params.feed_y_frac * grid.Ly)
+    source_xy = resolve_feed(params, grid)
     return Scene(
         grid=grid,
         eps_r=eps_r,
+        mu_r=mu_r,
         target_mask=target_mask,
         gangue_mask=gangue_mask,
         pec_mask=pec_mask,
         source_xy=source_xy,
         freq_hz=params.freq_hz,
         params=params,
+    )
+
+
+def sample_inclusion_offsets(
+    params: CavityParams,
+    n_grains: int,
+    rng: np.random.Generator,
+    *,
+    max_attempts: int = 300,
+) -> tuple[tuple[float, float], ...]:
+    """Random non-overlapping grain centres as offsets from the bed centre."""
+    if n_grains <= 0:
+        return ()
+    r = params.inclusion_radius_frac
+    min_sep = 2.2 * r
+    hw = 0.5 * params.charge_w_frac - r
+    hh = 0.5 * params.charge_h_frac - r
+    if hw <= 0 or hh <= 0:
+        return ()
+    placed: list[tuple[float, float]] = []
+    for _ in range(n_grains):
+        for _attempt in range(max_attempts):
+            ox = float(rng.uniform(-hw, hw))
+            oy = float(rng.uniform(-hh, hh))
+            ok = all((ox - px) ** 2 + (oy - py) ** 2 >= min_sep ** 2 for px, py in placed)
+            if ok:
+                placed.append((ox, oy))
+                break
+        else:
+            break
+    return tuple(placed)
+
+
+def params_with_layout(
+    params: CavityParams,
+    offsets: tuple[tuple[float, float], ...],
+) -> CavityParams:
+    """Return a copy of *params* with the given inclusion layout."""
+    from dataclasses import replace
+
+    return replace(params, inclusion_offsets_frac=offsets)
+
+
+def build_scene_at_T(
+    grid: Grid,
+    params: CavityParams,
+    pair_label: str,
+    T_K: np.ndarray,
+    freq_hz: float | None = None,
+) -> Scene:
+    """Build a scene with spatially varying ε(T), μ(T) from the literature tables.
+
+    Geometry/masks match ``build_scene``; permittivity at each charge pixel comes from
+    ``MineralModel.eps(T_local, f)``. Temperature is clipped to [298, 1273] K.
+    """
+    if T_K.shape != (grid.ny, grid.nx):
+        raise ValueError(f"T_K shape {T_K.shape} != ({grid.ny}, {grid.nx})")
+    pair = PAIRS[pair_label]
+    freq = freq_hz if freq_hz is not None else params.freq_hz
+    T_clip = np.clip(T_K, 298.0, 1273.0)
+
+    mats = Materials.from_pair(pair_label, freq_hz=freq)
+    scene = build_scene(grid, params, mats)
+
+    eps_r = scene.eps_r.copy()
+    mu_r = scene.mu_r.copy()
+
+    def _fill(mask: np.ndarray, model) -> None:
+        if not mask.any() or model is None:
+            return
+        temps = T_clip[mask]
+        eps_vals = np.empty(temps.shape, dtype=complex)
+        mu_vals = np.empty(temps.shape, dtype=complex)
+        for i, t in enumerate(temps.flat):
+            eps_vals.flat[i] = model.eps(float(t), freq)
+            mu_vals.flat[i] = model.mu(float(t), freq)
+        eps_r[mask] = eps_vals
+        mu_r[mask] = mu_vals
+
+    _fill(scene.gangue_mask, pair.gangue_model)
+    _fill(scene.target_mask, pair.target_model)
+
+    return Scene(
+        grid=scene.grid,
+        eps_r=eps_r,
+        mu_r=mu_r,
+        target_mask=scene.target_mask,
+        gangue_mask=scene.gangue_mask,
+        pec_mask=scene.pec_mask,
+        source_xy=scene.source_xy,
+        freq_hz=scene.freq_hz,
+        params=scene.params,
     )

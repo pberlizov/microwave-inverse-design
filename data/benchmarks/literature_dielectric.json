@@ -1,0 +1,149 @@
+{
+  "description": "Literature dielectric anchors @ ~2.45 GHz for regression against mw_inv materials.",
+  "default_freq_hz": 2450000000.0,
+  "entries": [
+    {
+      "id": "pyrite_disseminated_rt",
+      "mineral_model": "pyrite",
+      "T_K": 298.0,
+      "freq_hz": 2450000000.0,
+      "reference_eps_real": 8.0,
+      "reference_eps_imag": 0.3,
+      "rtol_real": 0.02,
+      "rtol_imag": 0.25,
+      "source": "MDPI Sensors 22(3):1138 (2022) PMC8840724 — disseminated grains"
+    },
+    {
+      "id": "pyrite_disseminated_lower_loss_than_bulk",
+      "mineral_model": "pyrite",
+      "T_K": 298.0,
+      "freq_hz": 2450000000.0,
+      "reference_eps_imag_upper": 0.75,
+      "check": "eps_imag_below_upper",
+      "source": "MDPI 2022: disseminated grains lower ε″ than bulk Shanxi reference"
+    },
+    {
+      "id": "calcite_rt",
+      "mineral_model": "calcite",
+      "T_K": 298.0,
+      "freq_hz": 2450000000.0,
+      "reference_eps_real": 8.5,
+      "reference_eps_imag": 0.05,
+      "rtol_real": 0.08,
+      "rtol_imag": 0.5,
+      "source": "MDPI 2022; inactive carbonate gangue"
+    },
+    {
+      "id": "quartz_rt",
+      "mineral_model": "quartz",
+      "T_K": 298.0,
+      "freq_hz": 2450000000.0,
+      "reference_eps_real": 4.6,
+      "reference_eps_imag": 0.0005,
+      "rtol_real": 0.05,
+      "rtol_imag": 2.0,
+      "source": "MDPI 2022; Nelson 1989 order-of-magnitude tan delta"
+    },
+    {
+      "id": "magnetite_rt",
+      "mineral_model": "magnetite",
+      "T_K": 298.0,
+      "freq_hz": 2450000000.0,
+      "reference_eps_real": 12.0,
+      "reference_eps_imag": 1.0,
+      "rtol_real": 0.05,
+      "rtol_imag": 0.2,
+      "source": "MDPI 2022 aggregated magnetite @ 2.45 GHz"
+    },
+    {
+      "id": "pair_pyrite_in_calcite_target",
+      "pair_label": "pyrite_in_calcite",
+      "role": "target",
+      "reference_eps_real": 8.0,
+      "reference_eps_imag": 0.3,
+      "rtol_real": 0.02,
+      "rtol_imag": 0.25,
+      "source": "Materials.from_pair pyrite_in_calcite target phase"
+    },
+    {
+      "id": "pair_pyrite_in_calcite_gangue",
+      "pair_label": "pyrite_in_calcite",
+      "role": "gangue",
+      "reference_eps_real": 8.5,
+      "reference_eps_imag": 0.05,
+      "rtol_real": 0.08,
+      "rtol_imag": 0.5,
+      "source": "Materials.from_pair pyrite_in_calcite gangue phase"
+    },
+    {
+      "id": "pair_magnetite_in_quartz_gangue",
+      "pair_label": "magnetite_in_quartz",
+      "role": "gangue",
+      "reference_eps_real": 4.6,
+      "reference_eps_imag": 0.0005,
+      "rtol_real": 0.05,
+      "rtol_imag": 2.0,
+      "source": "Materials.from_pair magnetite_in_quartz quartz gangue"
+    },
+    {
+      "id": "chalcopyrite_rt",
+      "mineral_model": "chalcopyrite",
+      "T_K": 298.0,
+      "freq_hz": 2450000000.0,
+      "reference_eps_real": 10.0,
+      "reference_eps_imag": 0.45,
+      "rtol_real": 0.05,
+      "rtol_imag": 0.25,
+      "source": "Goldbaum HMAP; impure CuFeS2 @ 2.45 GHz"
+    },
+    {
+      "id": "pyrrhotite_rt",
+      "mineral_model": "pyrrhotite",
+      "T_K": 298.0,
+      "freq_hz": 2450000000.0,
+      "reference_eps_real": 11.0,
+      "reference_eps_imag": 0.65,
+      "rtol_real": 0.05,
+      "rtol_imag": 0.25,
+      "source": "Peng 2013 Fe1-xS @ 2.45 GHz"
+    },
+    {
+      "id": "molybdenite_rt",
+      "mineral_model": "molybdenite",
+      "T_K": 298.0,
+      "freq_hz": 2450000000.0,
+      "reference_eps_real": 7.5,
+      "reference_eps_imag": 1.0,
+      "rtol_real": 0.08,
+      "rtol_imag": 0.2,
+      "source": "Chen hyperactive MoS2; Goldbaum HMAP"
+    }
+  ],
+  "eps_imag_ordering": [
+    {
+      "id": "hmap_loss_hierarchy_rt",
+      "minerals": ["molybdenite", "pyrrhotite", "chalcopyrite", "galena", "pyrite", "calcite"],
+      "source": "Mo/Wang/Cumbane RT hierarchy; calcite inactive gangue"
+    }
+  ],
+  "eps_T_checks": [
+    {
+      "id": "pyrite_eps_rises_with_T",
+      "mineral_model": "pyrite",
+      "freq_hz": 2450000000.0,
+      "T_cold_K": 298.0,
+      "T_hot_K": 773.0,
+      "expect_eps_imag_increase": true,
+      "source": "Cumbane 2008 / Peng 2011 qualitative pyrite ε(T) rise"
+    },
+    {
+      "id": "calcite_eps_stable_with_T",
+      "mineral_model": "calcite",
+      "freq_hz": 2450000000.0,
+      "T_cold_K": 298.0,
+      "T_hot_K": 773.0,
+      "max_eps_real_delta": 0.5,
+      "source": "Inactive gangue — weak T dependence"
+    }
+  ]
+}
