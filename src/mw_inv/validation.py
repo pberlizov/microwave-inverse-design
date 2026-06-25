@@ -13,7 +13,7 @@ import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 
 from mw_inv.dielectric_data import polyakova_bulk_eps
-from mw_inv.fdfd import C0, EPS0, MU0, Grid, SolveResult, absorbed_power_density, solve
+from mw_inv.fdfd import C0, Grid, SolveResult, absorbed_power_density, solve
 from mw_inv.fom import evaluate
 from mw_inv.geometry import CavityParams, Materials, build_scene
 

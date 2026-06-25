@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from mw_inv.design_evaluator import DesignEvaluator, preset_config  # noqa: E402
+from mw_inv.design_evaluator import DesignEvaluator  # noqa: E402
 from mw_inv.fdfd import Grid  # noqa: E402
 from mw_inv.geometry import CavityParams  # noqa: E402
 from mw_inv.ore_profiles import ORE_PROFILES, charge_volume_m3, load_ore_profile, materials_from_ore, ore_summary  # noqa: E402
@@ -60,6 +60,7 @@ def main() -> None:
             "fdfd_selectivity": rep.em_selectivity,
             "em_contrast": rep.em_contrast,
             "p_total": rep.p_total,
+            "charge_volume_m3": vol,
             "arcing_risk": rep.arcing_risk,
             "power_density_W_m3": rep.power_density_W_m3,
             "loss_tangent": rep.loss_tangent,

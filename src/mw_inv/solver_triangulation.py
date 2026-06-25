@@ -10,9 +10,9 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from mw_inv.design_export import DesignCase, ExportBundle, fdfd_selectivity, load_search_cases
+from mw_inv.design_export import DesignCase, fdfd_selectivity, load_search_cases
 from mw_inv.fdfd import Grid
-from mw_inv.geometry import CavityParams, Materials, build_scene
+from mw_inv.geometry import Materials, build_scene
 from mw_inv.meep_3d import compare_fdfd_meep_3d
 from mw_inv.meep_compare import compare_fdfd_meep, meep_available
 from mw_inv.openems_postprocess import h5py_available, selectivity_from_openems_dump

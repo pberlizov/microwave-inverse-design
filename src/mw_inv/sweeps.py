@@ -93,7 +93,7 @@ def frequency_sweep(
 # 2. Temperature dependence + thermal runaway (parametric eps''(T))
 # ---------------------------------------------------------------------------
 
-from mw_inv.dielectric_data import EpsTModel  # re-export for scripts/tests
+from mw_inv.dielectric_data import EpsTModel  # noqa: E402  (re-export for scripts/tests)
 
 
 @dataclass

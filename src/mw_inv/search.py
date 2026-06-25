@@ -10,12 +10,18 @@ discipline as the nanophotonics repo's baselines).
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from mw_inv.fdfd import Grid, solve
 from mw_inv.fom import evaluate
 from mw_inv.geometry import CavityParams, FEED_WALLS, Materials, build_scene
+
+if TYPE_CHECKING:
+    import optuna
+
+    from mw_inv.thermal import ThermalConfig
 
 
 # Legacy abstract geometry (point feed + slot baffle) — kept for regression comparisons.

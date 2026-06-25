@@ -14,9 +14,8 @@ from dataclasses import dataclass
 import numpy as np
 from scipy import ndimage
 
-from mw_inv.fdfd import Grid, SolveResult, absorbed_power_density, solve
-from mw_inv.fom import FomReport, evaluate
-from mw_inv.geometry import CavityParams, Scene, build_scene
+from mw_inv.fdfd import Grid
+from mw_inv.geometry import CavityParams, Scene
 from mw_inv.materials import Materials
 from mw_inv.thermal import CoupledResult, ThermalConfig, coupled_steady_state
 

@@ -23,7 +23,7 @@ from mw_inv.ensemble import evaluate_ensemble  # noqa: E402
 from mw_inv.fdfd import Grid  # noqa: E402
 from mw_inv.geometry import CavityParams, Materials  # noqa: E402
 from mw_inv.materials import PAIRS  # noqa: E402
-from mw_inv.search import best_robust, evaluate_params, evaluate_robust_params, optuna_robust_search  # noqa: E402
+from mw_inv.search import best_robust, evaluate_params, optuna_robust_search  # noqa: E402
 
 
 def main() -> None:

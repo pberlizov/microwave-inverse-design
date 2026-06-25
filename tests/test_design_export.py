@@ -13,7 +13,7 @@ from mw_inv.design_export import (  # noqa: E402
     load_search_cases,
     cases_from_search_summary,
 )
-from mw_inv.geometry import CavityParams, Materials  # noqa: E402
+from mw_inv.geometry import Materials  # noqa: E402
 from mw_inv.search import params_from_dict  # noqa: E402
 
 

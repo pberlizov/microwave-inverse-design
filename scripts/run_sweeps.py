@@ -20,7 +20,6 @@ from mw_inv.fdfd import Grid  # noqa: E402
 from mw_inv.geometry import Materials  # noqa: E402
 from mw_inv.materials import PAIRS  # noqa: E402
 from mw_inv.sweeps import (  # noqa: E402
-    EpsTModel,
     frequency_sweep,
     loss_response,
     runaway_curve,

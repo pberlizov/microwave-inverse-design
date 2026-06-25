@@ -8,7 +8,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from mw_inv.benchmarks import (  # noqa: E402
-    ALL_TIERS,
     benchmark_dir,
     check_goldbaum_heating,
     check_literature_dielectric,

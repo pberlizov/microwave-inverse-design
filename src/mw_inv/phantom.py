@@ -19,7 +19,6 @@ from mw_inv.phantom_data import (
     GEL_RHO_CP,
     PHANTOM_RECIPES,
     PhantomRecipePair,
-    saline_eps,
 )
 from mw_inv.search import best, optuna_search
 from mw_inv.thermal import PhaseThermalProps, ThermalConfig, coupled_steady_state

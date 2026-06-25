@@ -22,7 +22,6 @@ import scipy.sparse.linalg as spla
 from mw_inv.fdfd import Grid, SolveResult, absorbed_power_density, solve
 from mw_inv.fom import FomReport, evaluate
 from mw_inv.geometry import CavityParams, Materials, Scene, build_scene, build_scene_at_T
-from mw_inv.materials import PAIRS
 
 
 @dataclass(frozen=True)

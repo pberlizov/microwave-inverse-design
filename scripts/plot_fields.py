@@ -58,7 +58,8 @@ def try_png(untuned: dict, tuned: dict, grid: Grid, out: Path) -> bool:
                     title += f"\nsel={d['selectivity']:.3f}"
                 ax.imshow(d[key], origin="lower", cmap=cmap, extent=ext)
                 ax.set_title(title, fontsize=9)
-                ax.set_xticks([]); ax.set_yticks([])
+                ax.set_xticks([])
+                ax.set_yticks([])
         fig.suptitle("Microwave applicator inverse design (thin slice): "
                      "selective heating of target mineral phase", fontsize=11)
         fig.savefig(out, dpi=130, bbox_inches="tight")

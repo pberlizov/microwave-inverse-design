@@ -12,7 +12,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from mw_inv.validation_gate import ValidationGateReport
 
@@ -131,7 +134,6 @@ def assess_promotion(
     measured_eps_path: str | None = None,
 ) -> PromotionAssessment:
     """Compute highest tier satisfied by available evidence."""
-    from pathlib import Path
 
     lit = benchmarks_passed is True
     fdfd = lit and gate is not None and gate.passed

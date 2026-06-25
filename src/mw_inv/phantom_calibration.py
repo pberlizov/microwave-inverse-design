@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from mw_inv.geometry import Materials
-from mw_inv.phantom_data import PHANTOM_RECIPES, PhantomRecipePair, saline_eps
+from mw_inv.phantom_data import PHANTOM_RECIPES, PhantomRecipePair
 
 
 @dataclass(frozen=True)
@@ -43,10 +43,7 @@ def recipe_with_measured(
     base = PHANTOM_RECIPES[phantom_label]
     target_key = base.target.label
     gangue_key = base.gangue.label
-    t_eps = measured[target_key].eps if target_key in measured else base.target.eps
-    g_eps = measured[gangue_key].eps if gangue_key in measured else base.gangue.eps
     from dataclasses import replace
-    from mw_inv.phantom_data import GelRecipe
 
     target = replace(base.target, label=target_key)
     gangue = replace(base.gangue, label=gangue_key)

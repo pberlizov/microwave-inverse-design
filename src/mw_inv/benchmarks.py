@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from mw_inv.dielectric_data import MINERAL_MODELS
-from mw_inv.materials import Materials, PAIRS
+from mw_inv.materials import Materials
 from mw_inv.ore_profiles import HEATING_CLASSES, HMAP_MINERALS, OreComposition, ORE_PROFILES
 from mw_inv.phantom_data import saline_eps
 from mw_inv.stress import ThermoelasticProps, grain_size_penalty_factor
@@ -295,7 +295,6 @@ def check_stress_qualitative(data: dict | None = None) -> list[BenchmarkResult]:
         metrics={"fine": p_f, "opt": p_o, "coarse": p_c},
     ))
 
-    te = data["thermoelastic"]
     props = ThermoelasticProps()
     ok = props.target_alpha > props.gangue_alpha
     results.append(BenchmarkResult(

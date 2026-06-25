@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from mw_inv.dielectric_data import MINERAL_MODELS, MineralModel, mineral_eps, mineral_mu
+from mw_inv.dielectric_data import MINERAL_MODELS, MineralModel, mineral_eps
 from mw_inv.ore_profiles import HMAP_MINERALS
 
 __all__ = [

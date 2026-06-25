@@ -8,8 +8,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from mw_inv.dielectric_data import MINERAL_MODELS, mineral_eps  # noqa: E402
-from mw_inv.materials import PAIRS, Materials  # noqa: E402
-from mw_inv.mineral_catalog import CATALOG, MicrowaveClass, hmap_minerals, loss_contrast  # noqa: E402
+from mw_inv.materials import Materials  # noqa: E402
+from mw_inv.mineral_catalog import CATALOG, MicrowaveClass, hmap_minerals  # noqa: E402
 from mw_inv.ore_profiles import ORE_PROFILES, materials_from_ore  # noqa: E402
 
 

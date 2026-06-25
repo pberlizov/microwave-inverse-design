@@ -7,7 +7,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from mw_inv.geometry import CavityParams  # noqa: E402
 from mw_inv.ore_profiles import (  # noqa: E402
     ORE_PROFILES,
     cavity_params_from_ore,

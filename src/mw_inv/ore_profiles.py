@@ -376,8 +376,6 @@ def arcing_risk_flag(
     freq_hz: float = 2.45e9,
 ) -> dict[str, float | bool]:
     """Flag designs exceeding representative power-density / loss limits."""
-    omega = 2.0 * np.pi * freq_hz
-    eps0 = 8.854e-12
     tan_d = max(materials.target.imag, materials.gangue.imag) / max(materials.target.real, 1e-6)
     pd = power_density_W_m3(p_total, charge_volume_m3)
     return {
