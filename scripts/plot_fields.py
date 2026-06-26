@@ -17,7 +17,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from mw_inv.fdfd import Grid, absorbed_power_density, solve  # noqa: E402
+from mw_inv.fdfd import Grid, absorbed_power_density, solve_scene  # noqa: E402
 from mw_inv.fom import evaluate  # noqa: E402
 from mw_inv.geometry import CavityParams, Materials, build_scene  # noqa: E402
 from mw_inv.materials import PAIRS  # noqa: E402
@@ -26,7 +26,7 @@ from mw_inv.search import best, optuna_search  # noqa: E402
 
 def fields_for(params: CavityParams, grid: Grid, materials: Materials) -> dict:
     scene = build_scene(grid, params, materials)
-    res = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
+    res = solve_scene(grid, scene)
     rep = evaluate(res, scene)
     return {
         "eps_imag": scene.eps_r.imag,

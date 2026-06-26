@@ -17,9 +17,9 @@ exact for a specific ore.
 Manufacturable parametrization (step 4): wall-mounted coax / waveguide feed, coax
 stub depth, movable PEC tuning plate, and bed position.
 
-**Maturity: EXPERIMENTAL** — parametrization only.  Excitation is still a single
-grid-node current (``fdfd.solve``); ``excitation='waveguide'`` widens the air stub
-pixel band only.  Internal metal uses Im(ε)→∞.  See ``docs/MATURITY.md``.
+**Maturity: EXPERIMENTAL** — manufacturable geometry with **distributed line-port**
+excitation in FDFD (stub-mouth ``J_z`` band matching coax/waveguide width). openEMS
+remains the matched-port truth solver (backlog A1).
 """
 
 from __future__ import annotations
@@ -105,6 +105,7 @@ class Scene:
     pec_mask: np.ndarray         # bool (ny, nx): internal PEC (plate/baffle) pixels
     source_xy: tuple[float, float]
     freq_hz: float
+    source_j: np.ndarray | None = None   # A/m² per cell — distributed stub-mouth feed
     params: CavityParams = field(default_factory=CavityParams)
 
 
@@ -137,6 +138,48 @@ def _stub_width(params: CavityParams, grid: Grid) -> float:
     if params.excitation == "waveguide":
         w = max(w, 0.08)
     return w * min(grid.Lx, grid.Ly)
+
+
+def build_source_jz(
+    params: CavityParams,
+    grid: Grid,
+    *,
+    source_amp: float = 1.0,
+) -> np.ndarray:
+    """Distributed ``J_z`` at the coax/waveguide stub mouth (A/m² per cell).
+
+    Spreads the feed across the stub width at the tip — closer to a lumped port than a
+    single grid-node point source.  Total discrete RHS matches the legacy point feed
+    ``solve(..., source_xy=...)`` convention (``source_amp`` is the same scalar knob).
+    """
+    jz = np.zeros((grid.ny, grid.nx), dtype=float)
+    sx, sy = resolve_feed(params, grid)
+    half_w = 0.5 * _stub_width(params, grid)
+    x, y = grid.coords()
+    XX, YY = np.meshgrid(x, y)
+
+    wall = params.feed_wall or "bottom"
+    if wall in ("bottom", "top"):
+        mask = (np.abs(XX - sx) <= half_w) & (np.abs(YY - sy) <= 1.5 * grid.dy)
+    else:
+        mask = (np.abs(YY - sy) <= half_w) & (np.abs(XX - sx) <= 1.5 * grid.dx)
+
+    mask[0, :] = False
+    mask[-1, :] = False
+    mask[:, 0] = False
+    mask[:, -1] = False
+
+    n = int(mask.sum())
+    cell_area = grid.dx * grid.dy
+    if n == 0:
+        ix, iy = grid.nearest_node(sx, sy)
+        ix = min(max(ix, 1), grid.nx - 2)
+        iy = min(max(iy, 1), grid.ny - 2)
+        jz[iy, ix] = source_amp / (cell_area * cell_area)
+        return jz.astype(complex)
+
+    jz[mask] = source_amp / (n * cell_area * cell_area)
+    return jz.astype(complex)
 
 
 def _rasterize_stub(
@@ -288,6 +331,7 @@ def build_scene(grid: Grid, params: CavityParams, materials: Materials | None = 
     _apply_pec(eps_r, mu_r, pec_mask, target_mask, gangue_mask)
 
     source_xy = resolve_feed(params, grid)
+    source_j = build_source_jz(params, grid)
     return Scene(
         grid=grid,
         eps_r=eps_r,
@@ -296,6 +340,7 @@ def build_scene(grid: Grid, params: CavityParams, materials: Materials | None = 
         gangue_mask=gangue_mask,
         pec_mask=pec_mask,
         source_xy=source_xy,
+        source_j=source_j,
         freq_hz=params.freq_hz,
         params=params,
     )
@@ -388,6 +433,7 @@ def build_scene_at_T(
         gangue_mask=scene.gangue_mask,
         pec_mask=scene.pec_mask,
         source_xy=scene.source_xy,
+        source_j=scene.source_j,
         freq_hz=scene.freq_hz,
         params=scene.params,
     )

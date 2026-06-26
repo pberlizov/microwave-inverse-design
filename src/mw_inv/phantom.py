@@ -11,7 +11,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from mw_inv.fdfd import Grid, solve
+from mw_inv.fdfd import Grid, solve_scene
 from mw_inv.fom import FomReport, evaluate
 from mw_inv.geometry import CavityParams, Materials, build_scene
 from mw_inv.phantom_data import (
@@ -114,7 +114,7 @@ DEFAULT_PROTOCOL: tuple[str, ...] = (
 
 def _em_report(grid: Grid, params: CavityParams, mats: Materials) -> FomReport:
     scene = build_scene(grid, params, mats)
-    res = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
+    res = solve_scene(grid, scene)
     return evaluate(res, scene)
 
 

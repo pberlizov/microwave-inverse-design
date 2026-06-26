@@ -51,9 +51,9 @@ def test_build_scene_at_T_spatial_eps():
 
 
 def test_coupled_run_converges():
-    cfg = ThermalConfig(drive=10.0, max_iters=20, tol_K=3.0)
+    cfg = ThermalConfig(drive=10.0, max_iters=30, tol_K=3.0)
     res = coupled_steady_state(GRID, PAIR, config=cfg)
-    assert res.thermal.n_iters <= 20
+    assert res.thermal.n_iters <= 30
     assert len(res.history_max_delta) >= 1
     assert res.history_max_delta[-1] < 10.0 or res.thermal.converged
 

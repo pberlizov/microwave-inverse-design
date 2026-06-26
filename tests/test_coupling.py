@@ -16,7 +16,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from mw_inv.design_evaluator import EvaluationConfig, evaluate_design  # noqa: E402
-from mw_inv.fdfd import Grid, solve  # noqa: E402
+from mw_inv.fdfd import Grid, solve, solve_scene  # noqa: E402
 from mw_inv.fom import evaluate  # noqa: E402
 from mw_inv.geometry import CavityParams, Materials, build_scene  # noqa: E402
 
@@ -26,7 +26,16 @@ MATS = Materials.from_pair("pyrite_in_calcite")
 
 def _fom(params: CavityParams):
     sc = build_scene(GRID, params, MATS)
-    return evaluate(solve(GRID, sc.eps_r, sc.freq_hz, sc.source_xy, mu_r=sc.mu_r), sc)
+    return evaluate(solve_scene(GRID, sc), sc)
+
+
+def _fom_point(params: CavityParams):
+    """Legacy point feed — still used to regression-test fake-PEC coupling pathology."""
+    sc = build_scene(GRID, params, MATS)
+    return evaluate(
+        solve(GRID, sc.eps_r, sc.freq_hz, source_xy=sc.source_xy, mu_r=sc.mu_r),
+        sc,
+    )
 
 
 def test_coupling_metrics_invariants():
@@ -47,9 +56,13 @@ def test_no_pec_design_couples_fully():
 def test_baffle_exposes_coupling_pathology():
     """The Im(eps)=1e6 'PEC' baffle is a strong *absorber*, not a lossless reflector:
     it can raise selectivity while dumping nearly all power into structure. Coupling
-    efficiency surfaces this where selectivity alone hides it."""
-    base = _fom(CavityParams())
-    baffled = _fom(replace(CavityParams(), baffle_len_frac=0.4))
+    efficiency surfaces this where selectivity alone hides it.
+
+    Line-port excitation at the stub mouth does not re-create this trap; the pathology
+    is pinned with the legacy point feed that previously drove the search stack.
+    """
+    base = _fom_point(CavityParams())
+    baffled = _fom_point(replace(CavityParams(), baffle_len_frac=0.4))
     assert baffled.coupling_eff < 0.1            # almost no power reaches the charge
     assert baffled.pec_loss_fraction > 0.9       # ... it is dumped in the "PEC" baffle
     assert baffled.p_total_charge < base.p_total_charge * 1e-3
@@ -61,12 +74,27 @@ def test_coupling_floor_penalises_low_coupling_designs():
     cfg = EvaluationConfig(materials=MATS, mode="em", objective="em_selectivity",
                            coupling_floor=0.5)
     good = evaluate_design(GRID, CavityParams(), cfg)
-    bad = evaluate_design(GRID, replace(CavityParams(), baffle_len_frac=0.4), cfg)
     assert not good.coupling_floor_applied
+
+    # Production line-port path: verify the fake-PEC trap still collapses coupling
+    # under point excitation (metric regression guard).
+    bad_params = replace(CavityParams(), baffle_len_frac=0.4)
+    assert _fom_point(bad_params).coupling_eff < cfg.coupling_floor
+
+    # Search stack uses line-port; exercise the penalty on a design with sub-unity coupling.
+    weak_coupling = replace(
+        CavityParams(), plate_len_frac=0.3, plate_angle_deg=90.0, stub_depth_frac=0.25,
+    )
+    strict = EvaluationConfig(
+        materials=MATS, mode="em", objective="em_selectivity", coupling_floor=0.999,
+        coupling_score_factor=cfg.coupling_score_factor,
+    )
+    bad = evaluate_design(GRID, weak_coupling, strict)
+    assert bad.coupling_eff < strict.coupling_floor
     assert bad.coupling_floor_applied
     # Penalised score is a fraction of the raw objective.
     assert bad.score == pytest.approx(bad.em_selectivity * cfg.coupling_score_factor)
-    assert bad.score < good.score
+    assert bad.score < evaluate_design(GRID, CavityParams(), cfg).score
 
 
 if __name__ == "__main__":

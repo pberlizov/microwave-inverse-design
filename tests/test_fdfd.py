@@ -10,9 +10,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from mw_inv.fdfd import Grid, absorbed_power_density, solve  # noqa: E402
+from mw_inv.fdfd import Grid, absorbed_power_density, solve, solve_scene  # noqa: E402
 from mw_inv.fom import evaluate  # noqa: E402
-from mw_inv.geometry import CavityParams, Materials, build_scene  # noqa: E402
+from mw_inv.geometry import CavityParams, Materials, build_scene, build_source_jz  # noqa: E402
 
 
 def test_empty_cavity_resonance_sweep_has_peak():
@@ -48,7 +48,7 @@ def test_absorbed_power_only_in_lossy_media():
     """Power density must be zero where Im(eps) == 0 and positive where it is lossy."""
     grid = Grid(nx=61, ny=61, Lx=0.30, Ly=0.30)
     scene = build_scene(grid, CavityParams())
-    res = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
+    res = solve_scene(grid, scene)
     p = absorbed_power_density(res)
     background = ~(scene.target_mask | scene.gangue_mask | scene.pec_mask)
     assert np.allclose(p[background], 0.0)
@@ -58,7 +58,7 @@ def test_absorbed_power_only_in_lossy_media():
 def test_selectivity_in_unit_interval():
     grid = Grid(nx=61, ny=61, Lx=0.30, Ly=0.30)
     scene = build_scene(grid, CavityParams())
-    res = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
+    res = solve_scene(grid, scene)
     rep = evaluate(res, scene)
     assert 0.0 <= rep.selectivity <= 1.0
     assert rep.contrast > 0.0
@@ -69,14 +69,14 @@ def test_lossy_target_outheats_gangue_per_area():
     grid = Grid(nx=81, ny=81, Lx=0.36, Ly=0.36)
     mats = Materials(target=8.0 + 3.0j, gangue=5.0 + 0.02j)
     scene = build_scene(grid, CavityParams(), mats)
-    res = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
+    res = solve_scene(grid, scene)
     rep = evaluate(res, scene)
     assert rep.contrast > 1.0
 
 
 def _selectivity(grid, params, mats):
     sc = build_scene(grid, params, mats)
-    return evaluate(solve(grid, sc.eps_r, sc.freq_hz, sc.source_xy, mu_r=sc.mu_r), sc).selectivity
+    return evaluate(solve_scene(grid, sc), sc).selectivity
 
 
 def test_tuner_field_changes_absorption():
@@ -117,6 +117,37 @@ def test_material_pairs_probe_opposite_regimes():
     assert easy.selectivity > 0.95          # transparent gangue: nearly all power in target
     assert hard.selectivity < 0.85          # matched eps': far from saturated (was 0.75 pre-μ″)
     assert easy.selectivity > hard.selectivity
+
+
+def test_line_excitation_spans_stub_width():
+    """Distributed source covers multiple interior cells at the stub mouth."""
+    grid = Grid(nx=61, ny=61, Lx=0.36, Ly=0.36)
+    params = CavityParams(stub_width_frac=0.08)
+    jz = build_source_jz(params, grid)
+    assert int(np.count_nonzero(jz)) >= 3
+
+
+def test_line_vs_point_selectivity_same_order():
+    """Line-port and legacy point feed give comparable selectivity (same physics)."""
+    grid = Grid(nx=71, ny=71, Lx=0.36, Ly=0.36)
+    scene = build_scene(grid, CavityParams(), Materials.from_pair("pyrite_in_calcite"))
+    s_line = evaluate(solve_scene(grid, scene), scene).selectivity
+    sx, sy = scene.source_xy
+    res_pt = solve(grid, scene.eps_r, scene.freq_hz, source_xy=(sx, sy), mu_r=scene.mu_r)
+    s_point = evaluate(res_pt, scene).selectivity
+    assert abs(s_line - s_point) < 0.08
+
+
+def test_selectivity_stable_under_grid_refinement():
+    """FOM should not swing wildly when the grid is refined (A2 stability)."""
+    params = CavityParams()
+    mats = Materials.from_pair("pyrite_in_calcite")
+    sels = []
+    for n in (51, 71, 91):
+        grid = Grid(nx=n, ny=n, Lx=0.36, Ly=0.36)
+        scene = build_scene(grid, params, mats)
+        sels.append(evaluate(solve_scene(grid, scene), scene).selectivity)
+    assert max(sels) - min(sels) < 0.06
 
 
 if __name__ == "__main__":

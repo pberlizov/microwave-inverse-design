@@ -36,7 +36,7 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 
-from mw_inv.fdfd import Grid, solve
+from mw_inv.fdfd import Grid, solve_scene
 from mw_inv.fom import evaluate
 from mw_inv.geometry import CavityParams, Materials, build_scene
 
@@ -81,7 +81,7 @@ def frequency_sweep(
     out: list[FreqPoint] = []
     for f in freqs_hz:
         scene = build_scene(grid, replace(params, freq_hz=float(f)), materials)
-        result = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
+        result = solve_scene(grid, scene)
         r = evaluate(result, scene)
         out.append(
             FreqPoint(float(f), r.selectivity, r.contrast, r.p_target, r.p_total_charge)
@@ -121,7 +121,7 @@ def loss_response(
     for epp in eps_imag_values:
         mats = replace(base, target=complex(eps_real, float(epp)))
         scene = build_scene(grid, params, mats)
-        r = evaluate(solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r), scene)
+        r = evaluate(solve_scene(grid, scene), scene)
         out.append(LossPoint(float(epp), r.p_target, r.selectivity))
     return out
 
@@ -170,7 +170,7 @@ def grain_size_sweep(
         for i, epp in enumerate(eps_imag_values):
             mats = replace(base, target=complex(eps_real, float(epp)))
             scene = build_scene(grid, params, mats)
-            r = evaluate(solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r), scene)
+            r = evaluate(solve_scene(grid, scene), scene)
             n = int(scene.target_mask.sum())
             mean_p[i] = r.p_target / (n * cell) if n else 0.0
         i_peak = int(np.argmax(mean_p))
@@ -216,7 +216,7 @@ def power_vs_temperature(
     for i, T in enumerate(temps_K):
         mats = replace(base, target=eps_t.eps(float(T)))
         scene = build_scene(grid, params, mats)
-        result = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
+        result = solve_scene(grid, scene)
         p_gen[i] = evaluate(result, scene).p_target
     return p_gen
 

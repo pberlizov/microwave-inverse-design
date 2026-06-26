@@ -13,7 +13,7 @@ import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 
 from mw_inv.dielectric_data import polyakova_bulk_eps
-from mw_inv.fdfd import C0, Grid, SolveResult, absorbed_power_density, solve
+from mw_inv.fdfd import C0, Grid, SolveResult, absorbed_power_density, solve, solve_scene
 from mw_inv.fom import evaluate
 from mw_inv.geometry import CavityParams, Materials, build_scene
 
@@ -122,7 +122,7 @@ def dual_grid_agreement(tol: float = 0.02) -> CheckResult:
     for n in (61, 101):
         grid = Grid(nx=n, ny=n, Lx=0.36, Ly=0.36)
         scene = build_scene(grid, params, mats)
-        res = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
+        res = solve_scene(grid, scene)
         sels.append(evaluate(res, scene).selectivity)
     delta = abs(sels[1] - sels[0])
     ok = delta < tol
@@ -150,7 +150,7 @@ def grid_convergence(
     for g in grids:
         grid = Grid(nx=g, ny=g, Lx=0.36, Ly=0.36)
         scene = build_scene(grid, params, mats)
-        res = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
+        res = solve_scene(grid, scene)
         sels.append(evaluate(res, scene).selectivity)
     sels = np.array(sels)
     spread = float(sels[-1] - sels[-2])
@@ -248,10 +248,8 @@ def temperature_materials_effect(min_delta: float = 0.005) -> CheckResult:
     params = CavityParams()
     scene_cold = build_scene(grid, params, Materials.from_pair("pyrite_in_calcite", target_T_K=298.0))
     scene_hot = build_scene(grid, params, Materials.from_pair("pyrite_in_calcite", target_T_K=773.0))
-    res_cold = solve(grid, scene_cold.eps_r, scene_cold.freq_hz, scene_cold.source_xy,
-                     mu_r=scene_cold.mu_r)
-    res_hot = solve(grid, scene_hot.eps_r, scene_hot.freq_hz, scene_hot.source_xy,
-                    mu_r=scene_hot.mu_r)
+    res_cold = solve_scene(grid, scene_cold)
+    res_hot = solve_scene(grid, scene_hot)
     s_cold = evaluate(res_cold, scene_cold).selectivity
     s_hot = evaluate(res_hot, scene_hot).selectivity
     delta = abs(s_hot - s_cold)
@@ -289,7 +287,7 @@ def meep_scene_check(
     mats = Materials.from_pair(materials_label)
     scene = build_scene(grid, CavityParams(), mats)
     fdfd_sel = evaluate(
-        solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r),
+        solve_scene(grid, scene),
         scene,
     ).selectivity
     meep_sel = meep_selectivity(scene, grid)
@@ -325,7 +323,7 @@ def meep_3d_extrusion_check(
     mats = Materials.from_pair(materials_label)
     scene = build_scene(grid, CavityParams(), mats)
     fdfd_sel = evaluate(
-        solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r),
+        solve_scene(grid, scene),
         scene,
     ).selectivity
     cmp = compare_fdfd_meep_3d(scene, grid, fdfd_sel, materials=mats, Lz=Lz)

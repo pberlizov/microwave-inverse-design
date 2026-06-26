@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from mw_inv.fdfd import Grid, solve
+from mw_inv.fdfd import Grid, solve_scene
 from mw_inv.fom import evaluate as evaluate_fom
 from mw_inv.geometry import CavityParams, Materials, build_scene
 
@@ -314,7 +314,7 @@ def evaluate_design(
         raise ValueError("pair_label required for thermal/stress/full evaluation")
 
     scene = build_scene(grid, params, materials)
-    result = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
+    result = solve_scene(grid, scene)
     fom = evaluate_fom(result, scene)
 
     delta_T: float | None = None

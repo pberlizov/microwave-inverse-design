@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from mw_inv.fdfd import Grid, solve
+from mw_inv.fdfd import Grid, solve_scene
 from mw_inv.fom import evaluate
 from mw_inv.geometry import CavityParams, FEED_WALLS, Materials, build_scene
 
@@ -239,7 +239,7 @@ def _evaluate_field(
 ) -> Trial:
     params = replace(base, tuner_field=tuple(field))
     scene = build_scene(grid, params, materials)
-    result = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
+    result = solve_scene(grid, scene)
     report = evaluate(result, scene)
     return Trial(
         params={"tuner_field": list(field)},

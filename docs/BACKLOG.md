@@ -67,8 +67,13 @@ Done when:
 - Gate failures explain whether the issue is “ranking mismatch” vs “coupling collapse”.
 
 ### A2 (P1) Improve FDFD excitation beyond a point source (keep FDFD as fast pre-screen)
-**Why:** Even if openEMS becomes the truth solver, the fast inner loop benefits from a
-more physically meaningful drive (distributed source / boundary mode injection).
+
+**Status (line-port done):** ``build_source_jz`` distributes ``J_z`` across the stub mouth
+with the same discrete RHS scale as the legacy point feed; ``Scene.source_j`` +
+``solve_scene()`` is the default in search/evaluator/thermal. Legacy point feed remains
+via ``solve(..., source_xy=...)`` for regression tests.
+
+**Remaining:** TE10 waveguide boundary mode; adjoint-ready source API.
 
 Implementation steps:
 1. Extend `fdfd.solve` to accept either:

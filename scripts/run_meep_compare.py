@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from mw_inv.fdfd import Grid, solve  # noqa: E402
+from mw_inv.fdfd import Grid, solve_scene  # noqa: E402
 from mw_inv.fom import evaluate  # noqa: E402
 from mw_inv.geometry import CavityParams, Materials, build_scene  # noqa: E402
 from mw_inv.materials import PAIRS  # noqa: E402
@@ -30,7 +30,7 @@ def main() -> None:
     mats = Materials.from_pair(args.materials)
     scene = build_scene(grid, CavityParams(), mats)
     fdfd_sel = evaluate(
-        solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r),
+        solve_scene(grid, scene),
         scene,
     ).selectivity
 

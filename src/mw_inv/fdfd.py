@@ -1,8 +1,8 @@
 """2D frequency-domain FDFD solver (TM / E_z) for a metal-walled microwave cavity.
 
 We solve the scalar Helmholtz equation for the out-of-plane field E_z on a uniform
-grid, with a complex relative permittivity map ``eps_r(x, y)`` and a point current
-source (a stylised feed / antenna stub):
+grid, with a complex relative permittivity map ``eps_r(x, y)`` and a current source
+``J_z`` (point or distributed line-port at the coax stub mouth):
 
     (d2/dx2 + d2/dy2) E_z + k0^2 * eps_r * E_z = -i * omega * mu0 * J_z
 
@@ -125,35 +125,78 @@ def solve(
     grid: Grid,
     eps_r: np.ndarray,
     freq_hz: float,
-    source_xy: tuple[float, float],
+    source_xy: tuple[float, float] | None = None,
     source_amp: float = 1.0,
+    source_j: np.ndarray | None = None,
     mu_r: np.ndarray | None = None,
 ) -> SolveResult:
-    """Solve for E_z given permittivity/permeability maps, frequency and a point feed.
+    """Solve for E_z given permittivity maps, frequency, and a current source.
 
-    ``eps_r`` is shape (ny, nx), complex (Im > 0 == lossy). Optional ``mu_r`` adds
-    magnetic propagation and loss (important for magnetite). Returns the complex field.
+    Provide either ``source_xy`` (legacy point feed) or ``source_j`` (A/m² per cell,
+    shape (ny, nx)) from ``geometry.build_source_jz``.  Scene-based callers should use
+    ``solve_scene``.
     """
+    if (source_xy is None) == (source_j is None):
+        raise ValueError("provide exactly one of source_xy or source_j")
+
     if eps_r.shape != (grid.ny, grid.nx):
         raise ValueError(f"eps_r shape {eps_r.shape} != ({grid.ny}, {grid.nx})")
     if mu_r is not None and mu_r.shape != eps_r.shape:
         raise ValueError(f"mu_r shape {mu_r.shape} != eps_r shape {eps_r.shape}")
+    if source_j is not None and source_j.shape != eps_r.shape:
+        raise ValueError(f"source_j shape {source_j.shape} != eps_r shape {eps_r.shape}")
 
     omega = 2.0 * np.pi * freq_hz
     k0 = omega / C0
     A = _build_operator(grid, eps_r, k0, mu_r)
 
     b = np.zeros(grid.nx * grid.ny, dtype=complex)
-    sx, sy = source_xy
-    six, siy = grid.nearest_node(sx, sy)
-    six = min(max(six, 1), grid.nx - 2)
-    siy = min(max(siy, 1), grid.ny - 2)
     cell_area = grid.dx * grid.dy
-    b[grid.index(six, siy)] = -1j * omega * MU0 * source_amp / cell_area
+
+    if source_j is not None:
+        j = np.asarray(source_j, dtype=complex) * source_amp
+        for iy in range(1, grid.ny - 1):
+            for ix in range(1, grid.nx - 1):
+                if j[iy, ix] != 0:
+                    b[grid.index(ix, iy)] = -1j * omega * MU0 * j[iy, ix] * cell_area
+    else:
+        assert source_xy is not None
+        sx, sy = source_xy
+        six, siy = grid.nearest_node(sx, sy)
+        six = min(max(six, 1), grid.nx - 2)
+        siy = min(max(siy, 1), grid.ny - 2)
+        b[grid.index(six, siy)] = -1j * omega * MU0 * source_amp / cell_area
 
     Ez_flat = spla.spsolve(A, b)
     Ez = Ez_flat.reshape(grid.ny, grid.nx)
     return SolveResult(Ez=Ez, freq_hz=freq_hz, eps_r=eps_r, grid=grid, mu_r=mu_r)
+
+
+def solve_scene(
+    grid: Grid,
+    scene,
+    *,
+    source_amp: float = 1.0,
+) -> SolveResult:
+    """Solve using distributed ``scene.source_j`` when present, else point ``source_xy``."""
+    source_j = getattr(scene, "source_j", None)
+    if source_j is not None and np.any(source_j):
+        return solve(
+            grid,
+            scene.eps_r,
+            scene.freq_hz,
+            source_j=source_j,
+            source_amp=source_amp,
+            mu_r=scene.mu_r,
+        )
+    return solve(
+        grid,
+        scene.eps_r,
+        scene.freq_hz,
+        source_xy=scene.source_xy,
+        source_amp=source_amp,
+        mu_r=scene.mu_r,
+    )
 
 
 def magnetic_field_components(result: SolveResult) -> tuple[np.ndarray, np.ndarray]:

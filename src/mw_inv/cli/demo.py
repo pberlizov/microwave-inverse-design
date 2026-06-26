@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from mw_inv.fdfd import Grid, solve
+from mw_inv.fdfd import Grid, solve_scene
 from mw_inv.fom import evaluate
 from mw_inv.geometry import CavityParams, Materials, build_scene
 from mw_inv.materials import DEFAULT_PAIR, PAIRS
@@ -19,7 +19,7 @@ def main(argv: list[str] | None = None) -> None:
     params = CavityParams()
     materials = Materials.from_pair(args.materials)
     scene = build_scene(grid, params, materials)
-    result = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
+    result = solve_scene(grid, scene)
     report = evaluate(result, scene)
 
     print(f"=== Default applicator (no tuning), materials={args.materials} ===")

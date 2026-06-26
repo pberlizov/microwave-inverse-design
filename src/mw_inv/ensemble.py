@@ -14,7 +14,7 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 
-from mw_inv.fdfd import Grid, solve
+from mw_inv.fdfd import Grid, solve_scene
 from mw_inv.fom import FomReport, evaluate
 from mw_inv.geometry import (
     CavityParams,
@@ -66,7 +66,7 @@ def evaluate_single_layout(
     offsets: tuple[tuple[float, float], ...],
 ) -> FomReport:
     scene = build_scene(grid, params_with_layout(params, offsets), materials)
-    result = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
+    result = solve_scene(grid, scene)
     return evaluate(result, scene)
 
 
@@ -183,7 +183,7 @@ def evaluate_at_freq(
         p = params_with_layout(p, offsets)
     mats = _materials_at_freq(materials, pair_label, freq_hz)
     scene = build_scene(grid, p, mats)
-    result = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
+    result = solve_scene(grid, scene)
     return evaluate(result, scene)
 
 

@@ -10,7 +10,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from mw_inv.fdfd import Grid, solve
+from mw_inv.fdfd import Grid, solve, solve_scene
 from mw_inv.fom import evaluate
 from mw_inv.geometry import CavityParams, Materials, build_scene
 from mw_inv.openems_export import export_scene_npz, write_openems_model
@@ -66,7 +66,7 @@ def fdfd_selectivity(
     materials: Materials,
 ) -> float:
     scene = build_scene(grid, params, materials)
-    res = solve(grid, scene.eps_r, scene.freq_hz, scene.source_xy, mu_r=scene.mu_r)
+    res = solve_scene(grid, scene)
     return evaluate(res, scene).selectivity
 
 

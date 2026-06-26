@@ -27,9 +27,9 @@ MATS = Materials.from_pair("pyrite_in_calcite")
 
 def _selectivity(params: CavityParams) -> float:
     sc = build_scene(GRID, params, MATS)
-    from mw_inv.fdfd import solve
+    from mw_inv.fdfd import solve_scene
 
-    rep = evaluate(solve(GRID, sc.eps_r, sc.freq_hz, sc.source_xy, mu_r=sc.mu_r), sc)
+    rep = evaluate(solve_scene(GRID, sc), sc)
     return rep.selectivity
 
 

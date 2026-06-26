@@ -19,7 +19,7 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 
-from mw_inv.fdfd import Grid, SolveResult, absorbed_power_density, solve
+from mw_inv.fdfd import Grid, SolveResult, absorbed_power_density, solve, solve_scene
 from mw_inv.fom import FomReport, evaluate
 from mw_inv.geometry import CavityParams, Materials, Scene, build_scene, build_scene_at_T
 
@@ -225,14 +225,7 @@ def coupled_steady_state(
         else:
             scene = build_scene_at_T(grid, params, pair_label, T, freq_hz=freq)
         charge_mask = scene.target_mask | scene.gangue_mask
-        em = solve(
-            grid,
-            scene.eps_r,
-            scene.freq_hz,
-            scene.source_xy,
-            mu_r=scene.mu_r,
-            source_amp=cfg.drive,
-        )
+        em = solve_scene(grid, scene, source_amp=cfg.drive)
         Q = absorbed_power_density(em)
 
         k = _build_k_map(scene, cfg.thermal_props)
@@ -275,10 +268,7 @@ def isothermal_baseline(
     params = params or CavityParams()
     T = np.full((grid.ny, grid.nx), T_amb_K)
     scene = build_scene_at_T(grid, params, pair_label, T, freq_hz=params.freq_hz)
-    em = solve(
-        grid, scene.eps_r, scene.freq_hz, scene.source_xy,
-        mu_r=scene.mu_r, source_amp=drive,
-    )
+    em = solve_scene(grid, scene, source_amp=drive)
     return evaluate(em, scene), scene, em
 
 
@@ -345,10 +335,7 @@ def _em_power_map(
     cfg: TransientConfig,
 ) -> tuple[np.ndarray, Scene]:
     scene = build_scene_at_T(grid, params, pair_label, T, freq_hz=params.freq_hz)
-    em = solve(
-        grid, scene.eps_r, scene.freq_hz, scene.source_xy,
-        mu_r=scene.mu_r, source_amp=cfg.drive,
-    )
+    em = solve_scene(grid, scene, source_amp=cfg.drive)
     return absorbed_power_density(em), scene
 
 
