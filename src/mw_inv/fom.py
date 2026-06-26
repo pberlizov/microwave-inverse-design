@@ -82,6 +82,10 @@ def evaluate(result: SolveResult, scene: Scene) -> FomReport:
     p_pec = float(p[pec_mask].sum() * cell) if pec_mask is not None else 0.0
     pec_loss_fraction = (p_pec / p_abs_total) if p_abs_total > 0 else 0.0
 
+    # Guard against fp drift when charge power ≈ total absorbed (lossless cavity, no PEC).
+    coupling_eff = float(min(max(coupling_eff, 0.0), 1.0))
+    pec_loss_fraction = float(min(max(pec_loss_fraction, 0.0), 1.0))
+
     return FomReport(
         selectivity=float(selectivity),
         contrast=contrast,
