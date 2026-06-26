@@ -5,6 +5,7 @@ geometries that 'win' on selectivity while routing power into structure.
 
     python scripts/run_multi_search.py --materials pyrite_in_calcite --trials 40
     python scripts/run_multi_search.py --check-arcing --trials 40
+    python scripts/run_multi_search.py --check-hotspot --max-hotspot-dt 475 --trials 40
 
 Writes data/multi_search_summary.json with Pareto highlights and a weighted recommendation.
 """
@@ -23,7 +24,9 @@ from mw_inv.fdfd import Grid  # noqa: E402
 from mw_inv.geometry import CavityParams, Materials  # noqa: E402
 from mw_inv.materials import PAIRS  # noqa: E402
 from mw_inv.search import (  # noqa: E402
+    DEFAULT_MAX_HOTSPOT_DELTA_T_K,
     evaluate_params,
+    multi_trial_to_dict,
     optuna_multi_search,
     pareto_best_coupling,
     pareto_best_selectivity,
@@ -39,6 +42,17 @@ def main() -> None:
     ap.add_argument("--grid", type=int, default=61)
     ap.add_argument("--seed", type=int, default=3307)
     ap.add_argument("--check-arcing", action="store_true", help="penalise / filter arcing-risk trials")
+    ap.add_argument(
+        "--check-hotspot",
+        action="store_true",
+        help="coupled thermal peak ΔT runaway proxy filter",
+    )
+    ap.add_argument(
+        "--max-hotspot-dt",
+        type=float,
+        default=DEFAULT_MAX_HOTSPOT_DELTA_T_K,
+        help="max target peak rise above ambient [K]",
+    )
     ap.add_argument("--weight-selectivity", type=float, default=0.6)
     ap.add_argument("--weight-coupling", type=float, default=0.4)
     ap.add_argument("--out", type=str, default="data/multi_search_summary.json")
@@ -55,6 +69,8 @@ def main() -> None:
         args.seed,
         materials=materials,
         check_arcing=args.check_arcing,
+        check_hotspot=args.check_hotspot,
+        max_hotspot_delta_T_K=args.max_hotspot_dt,
     )
     elapsed = time.time() - t0
 
@@ -66,6 +82,7 @@ def main() -> None:
         weight_selectivity=args.weight_selectivity,
         weight_coupling=args.weight_coupling,
         exclude_arcing=args.check_arcing,
+        exclude_hotspot=args.check_hotspot,
     )
     pareto = pareto_front_trials(trials, study)
 
@@ -74,50 +91,25 @@ def main() -> None:
         "trials": args.trials,
         "objectives": ["em_selectivity", "coupling_eff"],
         "check_arcing": args.check_arcing,
+        "check_hotspot": args.check_hotspot,
+        "max_hotspot_delta_T_K": args.max_hotspot_dt,
         "baseline": {
             "selectivity": baseline.selectivity,
             "coupling_eff": baseline.coupling_eff,
             "p_total": baseline.p_total,
             "contrast": baseline.contrast,
         },
-        "best_selectivity": {
-            "selectivity": best_sel.selectivity,
-            "coupling_eff": best_sel.coupling_eff,
-            "p_total": best_sel.p_total,
-            "contrast": best_sel.contrast,
-            "arcing_risk": best_sel.arcing_risk,
-            "params": best_sel.params,
-        },
-        "best_coupling": {
-            "selectivity": best_coupling.selectivity,
-            "coupling_eff": best_coupling.coupling_eff,
-            "p_total": best_coupling.p_total,
-            "contrast": best_coupling.contrast,
-            "arcing_risk": best_coupling.arcing_risk,
-            "params": best_coupling.params,
-        },
+        "best_selectivity": multi_trial_to_dict(best_sel),
+        "best_coupling": multi_trial_to_dict(best_coupling),
         "recommended": {
             "weights": {
                 "selectivity": args.weight_selectivity,
                 "coupling": args.weight_coupling,
             },
-            "selectivity": recommended.selectivity,
-            "coupling_eff": recommended.coupling_eff,
-            "p_total": recommended.p_total,
-            "arcing_risk": recommended.arcing_risk,
-            "params": recommended.params,
+            **multi_trial_to_dict(recommended),
         },
         "pareto_count": len(pareto),
-        "pareto_front": [
-            {
-                "selectivity": t.selectivity,
-                "coupling_eff": t.coupling_eff,
-                "p_total": t.p_total,
-                "arcing_risk": t.arcing_risk,
-                "params": t.params,
-            }
-            for t in pareto[:12]
-        ],
+        "pareto_front": [multi_trial_to_dict(t) for t in pareto[:12]],
         "seconds": round(elapsed, 1),
         "note": "Two-objective: maximise selectivity AND coupling_eff (charge power fraction).",
     }

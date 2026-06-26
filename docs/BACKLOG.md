@@ -131,8 +131,9 @@ Done when:
 ``pareto_recommend()`` weighted picker; ``--check-arcing`` filters risky trials.
 ``scripts/run_multi_search.py`` writes Pareto front + recommendation JSON.
 Pipeline: ``--multi-objective`` maps Pareto recommendation into ``tpe_search`` for gate/export.
+``--check-hotspot`` / ``--max-hotspot-dt`` apply coupled thermal peak-ΔT runaway proxy filter.
 
-**Remaining:** hotspot ΔT constraint in multi-objective loop.
+**Remaining:** none for core C0 loop (hotspot ΔT proxy wired).
 
 Implementation steps:
 1. Add objectives/constraints:

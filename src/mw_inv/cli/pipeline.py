@@ -28,6 +28,7 @@ from mw_inv.provenance import default_provenance
 from mw_inv.run_manifest import RunManifest, default_run_dir
 from mw_inv.run_refresh import apply_triangulation_refresh
 from mw_inv.search import (
+    DEFAULT_MAX_HOTSPOT_DELTA_T_K,
     best,
     evaluate_params,
     multi_trial_to_dict,
@@ -270,6 +271,8 @@ def _run_multi_search(
     base_params: CavityParams | None = None,
     store_top_k: int = 0,
     check_arcing: bool = False,
+    check_hotspot: bool = False,
+    max_hotspot_delta_T_K: float = DEFAULT_MAX_HOTSPOT_DELTA_T_K,
     weight_selectivity: float = 0.6,
     weight_coupling: float = 0.4,
 ) -> dict:
@@ -285,6 +288,8 @@ def _run_multi_search(
         materials=materials,
         legacy=legacy,
         check_arcing=check_arcing,
+        check_hotspot=check_hotspot,
+        max_hotspot_delta_T_K=max_hotspot_delta_T_K,
     )
     elapsed = time.time() - t0
     recommended = pareto_recommend(
@@ -293,6 +298,7 @@ def _run_multi_search(
         weight_selectivity=weight_selectivity,
         weight_coupling=weight_coupling,
         exclude_arcing=check_arcing,
+        exclude_hotspot=check_hotspot,
     )
     best_sel = pareto_best_selectivity(multi_trials)
     best_coupling = pareto_best_coupling(multi_trials)
@@ -318,6 +324,8 @@ def _run_multi_search(
         "multi_search": {
             "objectives": ["em_selectivity", "coupling_eff"],
             "check_arcing": check_arcing,
+            "check_hotspot": check_hotspot,
+            "max_hotspot_delta_T_K": max_hotspot_delta_T_K,
             "weights": {
                 "selectivity": weight_selectivity,
                 "coupling": weight_coupling,
@@ -400,6 +408,17 @@ def main(argv: list[str] | None = None) -> None:
         "--check-arcing",
         action="store_true",
         help="with --multi-objective: penalise/filter arcing-risk trials",
+    )
+    ap.add_argument(
+        "--check-hotspot",
+        action="store_true",
+        help="with --multi-objective: coupled thermal peak ΔT runaway proxy filter",
+    )
+    ap.add_argument(
+        "--max-hotspot-dt",
+        type=float,
+        default=DEFAULT_MAX_HOTSPOT_DELTA_T_K,
+        help="max target peak rise above ambient [K] when --check-hotspot (default 475)",
     )
     ap.add_argument("--weight-selectivity", type=float, default=0.6, help="multi-objective Pareto pick weight")
     ap.add_argument("--weight-coupling", type=float, default=0.4, help="multi-objective Pareto pick weight")
@@ -554,6 +573,8 @@ def main(argv: list[str] | None = None) -> None:
                 base_params=base_params,
                 store_top_k=args.openems_top_k,
                 check_arcing=args.check_arcing,
+                check_hotspot=args.check_hotspot,
+                max_hotspot_delta_T_K=args.max_hotspot_dt,
                 weight_selectivity=args.weight_selectivity,
                 weight_coupling=args.weight_coupling,
             )

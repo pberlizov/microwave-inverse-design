@@ -507,6 +507,9 @@ def best_robust(trials: list[RobustTrial]) -> RobustTrial:
 # Multi-objective search (C0): selectivity vs coupling_eff (+ optional arcing filter)
 # ---------------------------------------------------------------------------
 
+DEFAULT_MAX_HOTSPOT_DELTA_T_K = 475.0  # T_amb + 475 K ≈ 773 K runaway proxy threshold
+
+
 @dataclass
 class MultiTrial:
     params: dict
@@ -515,6 +518,30 @@ class MultiTrial:
     p_total: float
     contrast: float
     arcing_risk: bool = False
+    hotspot_delta_T_K: float | None = None
+    hotspot_violation: bool = False
+
+
+def _hotspot_delta_T_K(
+    grid: Grid,
+    params: CavityParams,
+    materials: Materials | None,
+    pair_label: str | None,
+) -> float | None:
+    """Peak target-phase rise above ambient at coupled steady state (runaway proxy)."""
+    if not pair_label:
+        return None
+    from mw_inv.thermal import ThermalConfig, coupled_steady_state, thermal_props_for_pair
+
+    cfg = ThermalConfig(
+        max_iters=12,
+        tol_K=4.0,
+        thermal_props=thermal_props_for_pair(pair_label),
+    )
+    coupled = coupled_steady_state(
+        grid, pair_label, config=cfg, params=params, materials=materials,
+    )
+    return float(coupled.thermal.T_max_target_K - cfg.T_amb_K)
 
 
 def _evaluate_multi_trial(
@@ -524,11 +551,20 @@ def _evaluate_multi_trial(
     *,
     legacy: bool,
     check_arcing: bool,
+    check_hotspot: bool = False,
+    max_hotspot_delta_T_K: float = DEFAULT_MAX_HOTSPOT_DELTA_T_K,
 ) -> MultiTrial:
     from mw_inv.design_evaluator import DesignEvaluator, preset_config
 
     cfg = preset_config("em", materials=materials, legacy=legacy, check_arcing=check_arcing)
     rep = DesignEvaluator(grid, cfg, preset="em").evaluate(params)
+    pair_label = materials.pair_label if materials else cfg.pair_label
+    hotspot_dt: float | None = None
+    hotspot_bad = False
+    if check_hotspot:
+        hotspot_dt = _hotspot_delta_T_K(grid, params, materials, pair_label)
+        if hotspot_dt is not None:
+            hotspot_bad = hotspot_dt > max_hotspot_delta_T_K
     return MultiTrial(
         params=rep.params,
         selectivity=rep.em_selectivity,
@@ -536,6 +572,8 @@ def _evaluate_multi_trial(
         p_total=rep.p_total,
         contrast=rep.em_contrast,
         arcing_risk=bool(rep.arcing_risk),
+        hotspot_delta_T_K=hotspot_dt,
+        hotspot_violation=hotspot_bad,
     )
 
 
@@ -548,6 +586,8 @@ def optuna_multi_search(
     *,
     legacy: bool = False,
     check_arcing: bool = False,
+    check_hotspot: bool = False,
+    max_hotspot_delta_T_K: float = DEFAULT_MAX_HOTSPOT_DELTA_T_K,
 ) -> tuple[list[MultiTrial], "optuna.Study"]:
     import optuna
 
@@ -566,12 +606,18 @@ def optuna_multi_search(
             materials,
             legacy=legacy,
             check_arcing=check_arcing,
+            check_hotspot=check_hotspot,
+            max_hotspot_delta_T_K=max_hotspot_delta_T_K,
         )
         trial.set_user_attr("contrast", mt.contrast)
         trial.set_user_attr("p_total", mt.p_total)
         trial.set_user_attr("arcing_risk", mt.arcing_risk)
+        if mt.hotspot_delta_T_K is not None:
+            trial.set_user_attr("hotspot_delta_T_K", mt.hotspot_delta_T_K)
+        trial.set_user_attr("hotspot_violation", mt.hotspot_violation)
         trials.append(mt)
-        coupling = mt.coupling_eff if not (check_arcing and mt.arcing_risk) else 0.0
+        unsafe = (check_arcing and mt.arcing_risk) or (check_hotspot and mt.hotspot_violation)
+        coupling = mt.coupling_eff if not unsafe else 0.0
         return mt.selectivity, coupling
 
     study = optuna.create_study(
@@ -605,6 +651,7 @@ def pareto_recommend(
     weight_selectivity: float = 0.6,
     weight_coupling: float = 0.4,
     exclude_arcing: bool = True,
+    exclude_hotspot: bool = True,
 ) -> MultiTrial:
     """Pick a balanced design from the Pareto front using weighted objectives."""
     front = pareto_front_trials(trials, study)
@@ -612,6 +659,10 @@ def pareto_recommend(
         safe = [t for t in front if not t.arcing_risk]
         if safe:
             front = safe
+    if exclude_hotspot:
+        cool = [t for t in front if not t.hotspot_violation]
+        if cool:
+            front = cool
     total_w = weight_selectivity + weight_coupling
     ws = weight_selectivity / total_w
     wc = weight_coupling / total_w
@@ -619,7 +670,7 @@ def pareto_recommend(
 
 
 def multi_trial_to_dict(trial: MultiTrial) -> dict:
-    return {
+    out = {
         "selectivity": trial.selectivity,
         "coupling_eff": trial.coupling_eff,
         "p_total": trial.p_total,
@@ -627,6 +678,10 @@ def multi_trial_to_dict(trial: MultiTrial) -> dict:
         "arcing_risk": trial.arcing_risk,
         "params": trial.params,
     }
+    if trial.hotspot_delta_T_K is not None:
+        out["hotspot_delta_T_K"] = trial.hotspot_delta_T_K
+        out["hotspot_violation"] = trial.hotspot_violation
+    return out
 
 
 def top_k_multi_trials(trials: list[MultiTrial], k: int) -> list[MultiTrial]:
