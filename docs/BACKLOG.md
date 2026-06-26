@@ -148,6 +148,10 @@ Done when:
 - `scripts/run_multi_search.py` can output a Pareto front with coupling + safety metrics.
 
 ### C1 (P1) Robust optimization under uncertainty (frequency, load placement, materials)
+
+**Status (partial):** ``--robust material`` on pipeline samples moisture/PSD scenarios via
+``evaluate_material_robust()``; min-selectivity gate reuses ``_robust_gate``.
+
 Implementation steps:
 1. Frequency robustness (already partially present): expand from mean/min selectivity to
    coupling + safety robustness over ISM band.
@@ -179,6 +183,7 @@ Done when:
 **Status (partial):** ore JSON `texture.packing_fraction` + `texture.psd` {d10,d50,d90};
 `resolve_packing_fraction()` / `porosity_diluted_eps()` in Bruggeman gangue+target mixing;
 PSD d50 → grain radius when `mean_grain_radius_m` absent.
+**Scene:** per-grain `inclusion_radii_frac`, `sample_inclusion_layout()`, PSD layouts in `evaluate_ensemble`.
 
 Implementation steps:
 1. Add packing fraction + PSD to ore profiles and scene generators.
@@ -194,6 +199,8 @@ Done when:
 **Status (partial):** ``data/measured_eps.example.json`` + ``evaluate_bench_gate()``;
 pipeline records ``manifest.bench.gate``; ``--bench-enforce`` flag; M2 integration test
 reaches ``bench_calibrated`` with synthetic openEMS + lab example JSON.
+``validate_lab_measurements()``, model-vs-bench rank/ΔT tolerance in gate,
+``scripts/run_bench_calibration.py``, ``scripts/ingest_lab_measurements.py``, CI M2 smoke.
 
 Implementation steps:
 1. Follow `docs/BENCH_PROTOCOL.md` to collect probe ε + ΔT bench JSON.

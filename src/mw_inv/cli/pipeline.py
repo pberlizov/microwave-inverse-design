@@ -59,21 +59,55 @@ def _robustness_block(
     n_grains: int,
     n_freqs: int,
     seed: int,
+    ore: "OreComposition | None" = None,
+    ore_profile_path: str | None = None,
+    ore_kw: dict | None = None,
+    n_material_scenarios: int = 6,
 ) -> dict:
     """Compute optional robustness summaries for untuned vs best."""
     from mw_inv.ensemble import (
         evaluate_ensemble,
         evaluate_frequency_robust,
         evaluate_frequency_robust_ensemble,
+        evaluate_material_robust,
     )
 
     out: dict[str, object] = {"mode": mode}
+    ore_kw = ore_kw or {}
+    if mode == "material":
+        if ore is None:
+            out["error"] = "material robustness requires --ore"
+            return out
+        out["untuned_material"] = evaluate_material_robust(
+            grid,
+            untuned,
+            ore,
+            ore_profile_path=ore_profile_path,
+            n_scenarios=n_material_scenarios,
+            seed=seed,
+            target_T_K=ore_kw.get("target_T_K", 298.0),
+            gangue_T_K=ore_kw.get("gangue_T_K", 298.0),
+            freq_hz=ore_kw.get("freq_hz", 2.45e9),
+        ).to_dict()
+        out["best_material"] = evaluate_material_robust(
+            grid,
+            best_params,
+            ore,
+            ore_profile_path=ore_profile_path,
+            n_scenarios=n_material_scenarios,
+            seed=seed + 1,
+            target_T_K=ore_kw.get("target_T_K", 298.0),
+            gangue_T_K=ore_kw.get("gangue_T_K", 298.0),
+            freq_hz=ore_kw.get("freq_hz", 2.45e9),
+        ).to_dict()
     if mode in ("ensemble", "freq_ensemble"):
         out["untuned_ensemble"] = evaluate_ensemble(
-            grid, untuned, materials, n_realizations=n_realizations, n_grains=n_grains, seed=seed,
+            grid, untuned, materials, n_realizations=n_realizations, n_grains=n_grains,
+            seed=seed, ore=ore,
         ).to_dict()
         out["best_ensemble"] = evaluate_ensemble(
-            grid, best_params, materials, n_realizations=n_realizations, n_grains=n_grains, seed=seed,
+            grid, best_params, materials, n_realizations=n_realizations, n_grains=n_grains,
+            seed=seed, ore=ore,
         ).to_dict()
     if mode in ("freq", "freq_ensemble"):
         if mode == "freq":
@@ -126,6 +160,9 @@ def _robust_gate(block: dict, *, min_improvement: float, floor: float) -> dict:
     elif mode == "freq":
         u = pick_min("untuned_freq")
         b = pick_min("best_freq")
+    elif mode == "material":
+        u = pick_min("untuned_material")
+        b = pick_min("best_material")
     elif mode == "freq_ensemble":
         u = pick_min("untuned_freq_ensemble")
         b = pick_min("best_freq_ensemble")
@@ -180,6 +217,9 @@ def _write_bench_artifacts(
             phantom_label,
             measured_eps_path,
             lab_measurements_path,
+            bench_grid=bench_grid,
+            bench_trials=bench_trials,
+            bench_seed=bench_seed,
         )
         out["gate"] = bench_gate.to_dict()
 
@@ -388,13 +428,14 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--bench-seed", type=int, default=7701)
     ap.add_argument(
         "--robust",
-        choices=("none", "freq", "ensemble", "freq_ensemble"),
+        choices=("none", "freq", "ensemble", "freq_ensemble", "material"),
         default="none",
         help="optional robustness evaluation for untuned vs best",
     )
     ap.add_argument("--robust-realizations", type=int, default=6)
     ap.add_argument("--robust-grains", type=int, default=5)
     ap.add_argument("--robust-n-freqs", type=int, default=5)
+    ap.add_argument("--robust-material-scenarios", type=int, default=6)
     ap.add_argument("--robust-seed", type=int, default=2206)
     ap.add_argument("--robust-enforce", action="store_true", help="fail the pipeline if robustness gate fails")
     ap.add_argument("--robust-floor", type=float, default=0.0, help="minimum acceptable robust min selectivity")
@@ -476,6 +517,8 @@ def main(argv: list[str] | None = None) -> None:
     args = ap.parse_args(argv)
     if args.materials and args.ore:
         ap.error("--materials and --ore are mutually exclusive")
+    if args.robust == "material" and not args.ore:
+        ap.error("--robust material requires --ore")
     if args.run_openems and args.synthesize_openems_dumps:
         ap.error("--run-openems and --synthesize-openems-dumps are mutually exclusive")
     if (args.run_openems or args.synthesize_openems_dumps) and args.skip_export:
@@ -489,11 +532,14 @@ def main(argv: list[str] | None = None) -> None:
 
     grid = Grid(nx=args.grid, ny=args.grid, Lx=0.36, Ly=0.36)
     ore_block: dict | None = None
+    ore_obj = None
+    ore_path: Path | None = None
+    ore_kw: dict = {}
     base_params = CavityParams()
 
     if args.ore:
         ore_path = Path(args.ore)
-        ore = load_ore_profile(ore_path)
+        ore_obj = load_ore_profile(ore_path)
         ore_kw = dict(
             ore_profile_path=ore_path,
             target_T_K=args.ore_target_t if args.ore_target_t is not None else 298.0,
@@ -501,10 +547,10 @@ def main(argv: list[str] | None = None) -> None:
             freq_hz=args.ore_freq if args.ore_freq is not None else 2.45e9,
             moisture_wt_percent=args.ore_moisture,
         )
-        materials = materials_from_ore(ore, **ore_kw)
-        base_params = cavity_params_from_ore(ore, cavity_span_m=grid.Lx)
+        materials = materials_from_ore(ore_obj, **ore_kw)
+        base_params = cavity_params_from_ore(ore_obj, cavity_span_m=grid.Lx)
         ore_block = {
-            **ore_summary(ore, **ore_kw),
+            **ore_summary(ore_obj, **ore_kw),
             "json_path": str(ore_path.resolve()),
             "eval_conditions": {
                 "target_T_K": ore_kw["target_T_K"],
@@ -633,6 +679,10 @@ def main(argv: list[str] | None = None) -> None:
             n_grains=args.robust_grains,
             n_freqs=args.robust_n_freqs,
             seed=args.robust_seed,
+            ore=ore_obj,
+            ore_profile_path=str(ore_path) if ore_path else None,
+            ore_kw=ore_kw,
+            n_material_scenarios=args.robust_material_scenarios,
         )
         manifest.evaluation["robustness"] = rb
         gate = _robust_gate(rb, min_improvement=args.robust_min_improvement, floor=args.robust_floor)

@@ -11,6 +11,7 @@ and **thermal ensemble** evaluation (coupled EM–heat over layouts).
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -23,6 +24,9 @@ from mw_inv.geometry import (
     params_with_layout,
     sample_inclusion_offsets,
 )
+
+if TYPE_CHECKING:
+    from mw_inv.ore_profiles import OreComposition
 
 # Industrial ISM band — magnetron frequency drift target.
 ISM_FREQ_HZ = (2.40e9, 2.50e9)
@@ -64,8 +68,14 @@ def evaluate_single_layout(
     params: CavityParams,
     materials: Materials | None,
     offsets: tuple[tuple[float, float], ...],
+    *,
+    radii_frac: tuple[float, ...] = (),
 ) -> FomReport:
-    scene = build_scene(grid, params_with_layout(params, offsets), materials)
+    scene = build_scene(
+        grid,
+        params_with_layout(params, offsets, radii_frac),
+        materials,
+    )
     result = solve_scene(grid, scene)
     return evaluate(result, scene)
 
@@ -78,15 +88,35 @@ def evaluate_ensemble(
     n_realizations: int = 8,
     n_grains: int = 5,
     seed: int = 0,
+    ore: "OreComposition | None" = None,
 ) -> EnsembleReport:
     """Average FOM over *n_realizations* random grain layouts."""
+    from mw_inv.ore_profiles import layout_params_with_psd
+
     reports: list[FomReport] = []
+    use_psd = (
+        ore is not None
+        and ore.texture is not None
+        and ore.texture.psd is not None
+        and ore.texture.psd.d10_m is not None
+        and ore.texture.psd.d90_m is not None
+    )
     for i in range(n_realizations):
         rng = np.random.default_rng(seed + i * 10_007)
-        offsets = sample_inclusion_offsets(params, n_grains, rng)
-        if not offsets:
-            offsets = params.inclusion_offsets_frac
-        reports.append(evaluate_single_layout(grid, params, materials, offsets))
+        if use_psd and ore is not None:
+            layout = layout_params_with_psd(
+                params, ore, n_grains=n_grains, rng=rng, cavity_span_m=grid.Lx,
+            )
+            offsets = layout.inclusion_offsets_frac
+            radii = layout.inclusion_radii_frac
+            reports.append(
+                evaluate_single_layout(grid, params, materials, offsets, radii_frac=radii),
+            )
+        else:
+            offsets = sample_inclusion_offsets(params, n_grains, rng)
+            if not offsets:
+                offsets = params.inclusion_offsets_frac
+            reports.append(evaluate_single_layout(grid, params, materials, offsets))
 
     sels = np.array([r.selectivity for r in reports])
     return EnsembleReport(
@@ -99,6 +129,84 @@ def evaluate_ensemble(
         n_realizations=n_realizations,
         n_grains=n_grains,
         per_realization=tuple(reports),
+    )
+
+
+@dataclass(frozen=True)
+class MaterialRobustReport:
+    mean_selectivity: float
+    min_selectivity: float
+    std_selectivity: float
+    n_scenarios: int
+    scenarios: tuple[dict, ...] = ()
+
+    def to_dict(self) -> dict:
+        return {
+            "mean_selectivity": self.mean_selectivity,
+            "min_selectivity": self.min_selectivity,
+            "std_selectivity": self.std_selectivity,
+            "n_scenarios": self.n_scenarios,
+            "scenarios": list(self.scenarios),
+        }
+
+
+def evaluate_material_robust(
+    grid: Grid,
+    params: CavityParams,
+    ore: "OreComposition",
+    *,
+    ore_profile_path: str | None = None,
+    target_T_K: float = 298.0,
+    gangue_T_K: float = 298.0,
+    freq_hz: float = 2.45e9,
+    n_scenarios: int = 6,
+    seed: int = 0,
+    psd_sample: bool = True,
+) -> MaterialRobustReport:
+    """Worst-case selectivity over sampled moisture / PSD material scenarios."""
+    from dataclasses import replace
+
+    from mw_inv.material_scenarios import sample_material_scenarios
+    from mw_inv.ore_profiles import materials_from_ore
+    from mw_inv.search import evaluate_params
+
+    scenarios = sample_material_scenarios(
+        ore,
+        n_scenarios=n_scenarios,
+        seed=seed,
+        ore_profile_path=ore_profile_path,
+        target_T_K=target_T_K,
+        gangue_T_K=gangue_T_K,
+        freq_hz=freq_hz,
+        psd_sample=psd_sample,
+    )
+    sels: list[float] = []
+    meta: list[dict] = []
+    for scen in scenarios:
+        mats = materials_from_ore(
+            ore,
+            ore_profile_path=ore_profile_path,
+            target_T_K=scen.target_T_K,
+            gangue_T_K=scen.gangue_T_K,
+            freq_hz=scen.freq_hz,
+            moisture_wt_percent=scen.moisture_wt_percent,
+        )
+        p = params
+        if scen.grain_radius_m is not None:
+            p = replace(
+                p,
+                inclusion_radius_frac=float(np.clip(scen.grain_radius_m / grid.Lx, 0.008, 0.12)),
+            )
+        rep = evaluate_params(grid, p, mats)
+        sels.append(rep.selectivity)
+        meta.append({**scen.to_dict(), "selectivity": rep.selectivity})
+    arr = np.array(sels)
+    return MaterialRobustReport(
+        mean_selectivity=float(arr.mean()),
+        min_selectivity=float(arr.min()),
+        std_selectivity=float(arr.std()) if len(arr) > 1 else 0.0,
+        n_scenarios=n_scenarios,
+        scenarios=tuple(meta),
     )
 
 

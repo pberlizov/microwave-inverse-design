@@ -266,6 +266,65 @@ def effective_grain_radius_m(texture: OreTexture) -> float | None:
     return None
 
 
+def sample_psd_radii_m(
+    texture: OreTexture,
+    n_grains: int,
+    rng: np.random.Generator,
+) -> tuple[float, ...]:
+    """Sample grain radii [m] uniform in [d10/2, d90/2] when PSD present."""
+    if n_grains <= 0:
+        return ()
+    if texture.psd and texture.psd.d10_m is not None and texture.psd.d90_m is not None:
+        lo = min(texture.psd.d10_m, texture.psd.d90_m) * 0.5
+        hi = max(texture.psd.d10_m, texture.psd.d90_m) * 0.5
+        if hi <= lo:
+            hi = lo * 1.01
+        diam = rng.uniform(lo * 2.0, hi * 2.0, size=n_grains)
+        return tuple(float(d) * 0.5 for d in diam)
+    r = effective_grain_radius_m(texture)
+    if r is None:
+        return ()
+    return (r,) * n_grains
+
+
+def psd_radii_frac(
+    texture: OreTexture,
+    n_grains: int,
+    rng: np.random.Generator,
+    *,
+    cavity_span_m: float,
+) -> tuple[float, ...]:
+    """Grain radii as fractions of cavity span for scene layout."""
+    radii_m = sample_psd_radii_m(texture, n_grains, rng)
+    if not radii_m:
+        return ()
+    return tuple(float(np.clip(r / cavity_span_m, 0.008, 0.12)) for r in radii_m)
+
+
+def layout_params_with_psd(
+    params: CavityParams,
+    ore: OreComposition,
+    *,
+    n_grains: int,
+    rng: np.random.Generator,
+    cavity_span_m: float = 0.36,
+) -> CavityParams:
+    """Random PSD-sized grain layout inside the charge bed."""
+    from dataclasses import replace
+    from mw_inv.geometry import params_with_layout, sample_inclusion_layout
+
+    if ore.texture is None or ore.texture.psd is None:
+        return params
+    radii_frac = psd_radii_frac(ore.texture, n_grains, rng, cavity_span_m=cavity_span_m)
+    if not radii_frac:
+        return params
+    offsets = sample_inclusion_layout(params, radii_frac, len(radii_frac), rng)
+    if not offsets:
+        return params
+    n = len(offsets)
+    return params_with_layout(params, offsets, radii_frac[:n])
+
+
 def porosity_diluted_eps(solid_eps: complex, packing_fraction: float) -> complex:
     """Bruggeman mix of solid mineral with air voids at porosity (1 − packing)."""
     packing = float(np.clip(packing_fraction, 0.05, 0.98))

@@ -85,6 +85,8 @@ class CavityParams:
         (-0.10, -0.04), (0.10, -0.04), (0.0, 0.08),
     )
     inclusion_radius_frac: float = 0.05
+    # Per-grain radii (fraction of min(Lx,Ly)); when empty, use inclusion_radius_frac for all.
+    inclusion_radii_frac: tuple[float, ...] = ()
 
     # --- High-dimensional dielectric tuner (non-physical upper bound) ---
     tuner_field: tuple[float, ...] = ()
@@ -288,8 +290,11 @@ def build_scene(grid: Grid, params: CavityParams, materials: Materials | None = 
     gangue_mask |= charge
 
     # --- Target mineral inclusions inside the charge ---
-    r = params.inclusion_radius_frac * min(grid.Lx, grid.Ly)
-    for ox, oy in params.inclusion_offsets_frac:
+    span = min(grid.Lx, grid.Ly)
+    radii_frac = params.inclusion_radii_frac
+    for i, (ox, oy) in enumerate(params.inclusion_offsets_frac):
+        r_frac = radii_frac[i] if i < len(radii_frac) else params.inclusion_radius_frac
+        r = r_frac * span
         ix0 = (params.charge_cx_frac + ox) * grid.Lx
         iy0 = (params.charge_cy_frac + oy) * grid.Ly
         disk = ((XX - ix0) ** 2 + (YY - iy0) ** 2) <= r ** 2
@@ -351,39 +356,67 @@ def sample_inclusion_offsets(
     n_grains: int,
     rng: np.random.Generator,
     *,
+    radii_frac: tuple[float, ...] = (),
     max_attempts: int = 300,
 ) -> tuple[tuple[float, float], ...]:
     """Random non-overlapping grain centres as offsets from the bed centre."""
     if n_grains <= 0:
         return ()
-    r = params.inclusion_radius_frac
-    min_sep = 2.2 * r
-    hw = 0.5 * params.charge_w_frac - r
-    hh = 0.5 * params.charge_h_frac - r
+    default_r = params.inclusion_radius_frac
+    r_list = [
+        radii_frac[i] if i < len(radii_frac) else default_r
+        for i in range(n_grains)
+    ]
+    max_r = max(r_list) if r_list else default_r
+    hw = 0.5 * params.charge_w_frac - max_r
+    hh = 0.5 * params.charge_h_frac - max_r
     if hw <= 0 or hh <= 0:
         return ()
     placed: list[tuple[float, float]] = []
-    for _ in range(n_grains):
+    placed_r: list[float] = []
+    for gi in range(n_grains):
+        ri = r_list[gi]
         for _attempt in range(max_attempts):
             ox = float(rng.uniform(-hw, hw))
             oy = float(rng.uniform(-hh, hh))
-            ok = all((ox - px) ** 2 + (oy - py) ** 2 >= min_sep ** 2 for px, py in placed)
+            ok = all(
+                (ox - px) ** 2 + (oy - py) ** 2 >= (1.1 * (ri + pr)) ** 2
+                for (px, py), pr in zip(placed, placed_r)
+            )
             if ok:
                 placed.append((ox, oy))
+                placed_r.append(ri)
                 break
         else:
             break
     return tuple(placed)
 
 
+def sample_inclusion_layout(
+    params: CavityParams,
+    radii_frac: tuple[float, ...],
+    n_grains: int,
+    rng: np.random.Generator,
+) -> tuple[tuple[float, float], ...]:
+    """Place grains with size-dependent separation (PSD-driven layouts)."""
+    if not radii_frac:
+        return sample_inclusion_offsets(params, n_grains, rng)
+    n = min(n_grains, len(radii_frac))
+    return sample_inclusion_offsets(params, n, rng, radii_frac=radii_frac[:n])
+
+
 def params_with_layout(
     params: CavityParams,
     offsets: tuple[tuple[float, float], ...],
+    radii_frac: tuple[float, ...] = (),
 ) -> CavityParams:
     """Return a copy of *params* with the given inclusion layout."""
     from dataclasses import replace
 
-    return replace(params, inclusion_offsets_frac=offsets)
+    kw: dict = {"inclusion_offsets_frac": offsets}
+    if radii_frac:
+        kw["inclusion_radii_frac"] = radii_frac
+    return replace(params, **kw)
 
 
 def build_scene_at_T(

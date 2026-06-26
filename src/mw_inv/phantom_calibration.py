@@ -120,8 +120,15 @@ def evaluate_bench_gate(
     *,
     max_real_drift: float = 1.5,
     max_imag_drift: float = 0.5,
+    max_imag_drift_frac: float = 0.20,
+    validate_model: bool = True,
+    bench_grid: int = 41,
+    bench_trials: int = 8,
+    bench_seed: int = 7701,
+    delta_t_rel_tol: float = 0.30,
 ) -> BenchGateReport:
     """Pass/fail bench calibration inputs for ``bench_calibrated`` promotion."""
+    from mw_inv.bench_ingest import validate_lab_measurements
     from mw_inv.promotion import _bench_calibration_ok
 
     path = Path(measured_eps_path)
@@ -143,11 +150,18 @@ def evaluate_bench_gate(
             continue
         dr = abs(float(row.get("drift_real", 0.0)))
         di = abs(float(row.get("drift_imag", 0.0)))
-        ok = dr <= max_real_drift and di <= max_imag_drift
+        anchor_im = abs(float(row.get("anchor_eps", [0, 0])[1]))
+        imag_frac_ok = True
+        if anchor_im > 0.01:
+            imag_frac_ok = di / anchor_im <= max_imag_drift_frac
+        ok = dr <= max_real_drift and di <= max_imag_drift and imag_frac_ok
+        detail = f"Δε′={row.get('drift_real', 0):.3f}, Δε″={row.get('drift_imag', 0):.3f}"
+        if anchor_im > 0.01:
+            detail += f", |Δε″|/ε″={di / anchor_im:.2%}"
         checks.append(BenchGateCheck(
             f"eps_drift_{row.get('batch', row.get('role', '?'))}",
             ok,
-            f"Δε′={row.get('drift_real', 0):.3f}, Δε″={row.get('drift_imag', 0):.3f}",
+            detail,
         ))
 
     if lab_measurements_path:
@@ -155,6 +169,13 @@ def evaluate_bench_gate(
         if not lp.is_file():
             checks.append(BenchGateCheck("lab_measurements_present", False, f"missing {lp}"))
         else:
+            val_issues = validate_lab_measurements(lp)
+            if val_issues:
+                checks.append(BenchGateCheck(
+                    "lab_schema",
+                    False,
+                    val_issues[0].message,
+                ))
             import json
 
             payload = json.loads(lp.read_text())
@@ -173,6 +194,47 @@ def evaluate_bench_gate(
                     rank_ok,
                     f"{len(matches)} bench record(s) for {phantom_label}",
                 ))
+
+            if validate_model and matches and not val_issues:
+                from mw_inv.fdfd import Grid
+                from mw_inv.phantom import compare_lab_measurement, predict_lab_outcome
+
+                grid = Grid(nx=bench_grid, ny=bench_grid, Lx=0.36, Ly=0.36)
+                pred = predict_lab_outcome(
+                    phantom_label,
+                    grid,
+                    n_opt_trials=bench_trials,
+                    seed=bench_seed,
+                    measured_eps_path=path,
+                )
+                model_rank = pred.optimized_delta_T_K > pred.untuned_delta_T_K
+                checks.append(BenchGateCheck(
+                    "model_rank_optimized_beats_untuned",
+                    model_rank,
+                    f"pred ΔT {pred.untuned_delta_T_K:.1f} → {pred.optimized_delta_T_K:.1f} K",
+                ))
+                for row in matches:
+                    comp = compare_lab_measurement(
+                        pred,
+                        float(row["measured_delta_T_K"]),
+                        row.get("measured_selectivity"),
+                        untuned_measured_delta_T_K=row.get("untuned_measured_delta_T_K"),
+                    )
+                    meas = float(row["measured_delta_T_K"])
+                    rel_err = abs(comp.delta_T_error_K) / max(meas, 1e-6)
+                    tol_ok = rel_err <= delta_t_rel_tol
+                    checks.append(BenchGateCheck(
+                        "model_delta_t_tolerance",
+                        tol_ok,
+                        f"|error|/measured={rel_err:.2%} (max {delta_t_rel_tol:.0%})",
+                    ))
+                    if comp.rank_correct is not None and model_rank is not None:
+                        agree = comp.rank_correct == model_rank
+                        checks.append(BenchGateCheck(
+                            "model_measured_rank_agreement",
+                            agree,
+                            f"model rank={model_rank}, measured rank={comp.rank_correct}",
+                        ))
 
     promotion_ok = _bench_calibration_ok(
         phantom_label,

@@ -21,6 +21,7 @@ from mw_inv.geometry import CavityParams, FEED_WALLS, Materials, build_scene
 if TYPE_CHECKING:
     import optuna
 
+    from mw_inv.ore_profiles import OreComposition
     from mw_inv.thermal import ThermalConfig
 
 
@@ -442,13 +443,14 @@ def evaluate_robust_params(
     n_grains: int = 5,
     seed: int = 0,
     legacy: bool = False,
+    ore: "OreComposition | None" = None,
 ) -> RobustTrial:
     from mw_inv.ensemble import evaluate_ensemble
 
     space = get_search_space(legacy=legacy)
     rep = evaluate_ensemble(
         grid, params, materials,
-        n_realizations=n_realizations, n_grains=n_grains, seed=seed,
+        n_realizations=n_realizations, n_grains=n_grains, seed=seed, ore=ore,
     )
     return RobustTrial(
         params=_knobs_from_params(params, space),
@@ -457,6 +459,43 @@ def evaluate_robust_params(
         std_selectivity=rep.std_selectivity,
         mean_p_total=rep.mean_p_total,
         score=rep.mean_selectivity,
+    )
+
+
+def evaluate_material_robust_params(
+    grid: Grid,
+    params: CavityParams,
+    ore: "OreComposition",
+    *,
+    ore_profile_path: str | None = None,
+    target_T_K: float = 298.0,
+    gangue_T_K: float = 298.0,
+    freq_hz: float = 2.45e9,
+    n_scenarios: int = 6,
+    seed: int = 0,
+    legacy: bool = False,
+) -> RobustTrial:
+    from mw_inv.ensemble import evaluate_material_robust
+
+    space = get_search_space(legacy=legacy)
+    rep = evaluate_material_robust(
+        grid,
+        params,
+        ore,
+        ore_profile_path=ore_profile_path,
+        target_T_K=target_T_K,
+        gangue_T_K=gangue_T_K,
+        freq_hz=freq_hz,
+        n_scenarios=n_scenarios,
+        seed=seed,
+    )
+    return RobustTrial(
+        params=_knobs_from_params(params, space),
+        mean_selectivity=rep.mean_selectivity,
+        min_selectivity=rep.min_selectivity,
+        std_selectivity=rep.std_selectivity,
+        mean_p_total=0.0,
+        score=rep.min_selectivity,
     )
 
 

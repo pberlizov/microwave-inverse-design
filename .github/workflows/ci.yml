@@ -32,3 +32,12 @@ jobs:
 
       - name: M1 solver-triangulated smoke (synthetic openEMS)
         run: python scripts/run_pipeline.py --materials pyrite_in_calcite --trials 8 --grid 41 --gate-min-improvement 0 --synthesize-openems-dumps --run-dir /tmp/mw_inv_m1_ci
+
+      - name: M2 bench calibration smoke
+        run: |
+          python scripts/run_bench_calibration.py \
+            --phantom saline_2_vs_0.5 \
+            --measured-eps data/measured_eps.example.json \
+            --lab-measurements data/lab_measurements.example.json \
+            --grid 31 --trials 4 \
+            --out /tmp/bench_calibration_ci.json
