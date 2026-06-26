@@ -41,8 +41,15 @@ Done when:
 - A “good” design cannot regress coupling below a user-configured floor.
 
 ### A1 (P0) Replace “point source” excitation with a port model for *truth* solvers
-**Why:** `fdfd.solve` uses a grid-node source; geometry is marked EXPERIMENTAL because
-it’s not a matched coax/waveguide port. (`src/mw_inv/geometry.py`)
+
+**Status (partial):** openEMS exports use coax-gap ``AddLumpedPort`` + ``calcPort``;
+each run writes ``port_metrics.json`` (|S11|, coupling_eff, selectivity). Python ingests
+via ``openems_postprocess.ingest_openems_case``; triangulation rows carry
+``openems_s11_mag`` / ``openems_coupling_eff``; gate adds coupling-floor checks and
+``openems_diagnosis`` (ranking mismatch vs coupling collapse).
+Harness: ``scripts/run_port_validation.py``.
+
+**Remaining:** FDFD port model (A2); automated Octave runner in CI.
 
 Implementation steps:
 1. Treat openEMS as the first “port-truth” engine (already exportable via

@@ -111,17 +111,22 @@ def generate_openems_script(
   [{cx_mm - pw_mm/2:.4f} {cy_mm - pw_mm/2:.4f} {bz - pin_mm - 1:.4f}], ...
   [{cx_mm + pw_mm/2:.4f} {cy_mm + pw_mm/2:.4f} {bz - 1:.4f}], [0 0 1], true);
 """
-        port_post = """
-port = calcPort(port, Sim_Path, freq);
-s11 = port{1}.uf.ref ./ port{1}.uf.inc;
-s11_mag = abs(s11);
-fprintf('openEMS |S11| = %.4f\\n', s11_mag);
-"""
     else:
         port_block = f"""% Coax lumped port (legacy stub gap)
 [CSX port{{1}}] = AddLumpedPort(CSX, 50, 1, 50, {port_start}, {port_stop}, {port_dir}, true);
 """
-        port_post = ""
+
+    port_post = """
+port = calcPort(port, Sim_Path, freq);
+s11 = port{1}.uf.ref ./ port{1}.uf.inc;
+s11_mag = abs(s11);
+coupling_eff = 1 - s11_mag.^2;
+fprintf('openEMS |S11| = %.4f  coupling_eff = %.4f\\n', s11_mag, coupling_eff);
+fid = fopen([Sim_Path '/port_metrics.json'], 'w');
+fprintf(fid, ['{{"s11_mag": %.6f, "coupling_eff": %.6f, "selectivity": %.6f, "freq_hz": %.6e}}\\n'], ...
+  s11_mag, coupling_eff, selectivity, freq);
+fclose(fid);
+"""
 
     return f"""function selectivity = {function_name}()
 % Auto-generated openEMS 3D cavity model from mw_inv CavityParams.
@@ -253,9 +258,17 @@ RunOpenEMS(Sim_Path, Sim_CSX);
 
 port = calcPort(port, Sim_Path, freq);
 s11 = port{{1}}.uf.ref ./ port{{1}}.uf.inc;
-result.s11_mag = abs(s11);
+s11_mag = abs(s11);
+coupling_eff = 1 - s11_mag.^2;
+result.s11_mag = s11_mag;
+result.coupling_eff = coupling_eff;
 result.freq_hz = freq;
-fprintf('Calibration |S11| = %.4f at %.3f GHz\\n', result.s11_mag, freq/1e9);
+fprintf('Calibration |S11| = %.4f at %.3f GHz  coupling_eff = %.4f\\n', ...
+  result.s11_mag, freq/1e9, result.coupling_eff);
+fid = fopen([Sim_Path '/port_metrics.json'], 'w');
+fprintf(fid, ['{{"s11_mag": %.6f, "coupling_eff": %.6f, "freq_hz": %.6e}}\\n'], ...
+  s11_mag, coupling_eff, freq);
+fclose(fid);
 end
 """
 
@@ -277,7 +290,7 @@ def write_openems_model(
     path = Path(path)
     func = "mw_inv_" + path.stem.replace("-", "_").replace(".", "_")
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(generate_openems_script(params, materials, function_name=func, **kwargs))
+    path.write_text(generate_openems_script(params, materials, function_name=func, port_mode="coax_gap", **kwargs))
     return path
 
 

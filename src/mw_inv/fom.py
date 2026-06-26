@@ -16,10 +16,9 @@ being dissipated in internal structure (notably the Im(eps)=1e6 "PEC" baffle, wh
 a strong *absorber* in this approximation, not a lossless reflector -- see
 ``pec_loss_fraction``).
 
-NOTE: a true scattering parameter |S11| / reflected power needs a matched port; the
-grid-node point source has no usable input impedance (its driven-node field is
-dominated by the source self-term). That metric is deferred to the openEMS port-truth
-path (backlog A1); here we report the energy-consistent coupling efficiency only.
+NOTE: matched-port |S11| and coupling_eff = 1 − |S11|² are reported on the openEMS
+truth path (``openems_postprocess``, exported ``port_metrics.json``); the FDFD
+grid-node source still uses energy-consistent coupling_eff only.
 """
 
 from __future__ import annotations

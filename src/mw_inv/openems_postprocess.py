@@ -2,17 +2,71 @@
 
 Mirrors the Octave logic in ``openems_export.generate_openems_script``.  Requires
 ``h5py`` when reading real dumps — optional dependency, not in ``requirements.txt``.
+
+Port-truth metrics (backlog A1): matched-port ``|S11|`` and ``coupling_eff = 1 - |S11|²``
+are written by exported openEMS scripts to ``port_metrics.json`` beside field dumps.
 """
 
 from __future__ import annotations
 
+import json
 import math
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 
 from mw_inv.fdfd import EPS0
 from mw_inv.geometry import CavityParams, Materials
+
+__all__ = [
+    "OpenemsCaseMetrics",
+    "OpenemsPortMetrics",
+    "h5py_available",
+    "ingest_openems_case",
+    "load_port_metrics",
+    "resolve_openems_case_paths",
+    "selectivity_from_e2",
+    "selectivity_from_openems_dump",
+]
+
+
+@dataclass(frozen=True)
+class OpenemsPortMetrics:
+    """Matched-port figures from openEMS ``calcPort`` (truth-solver path)."""
+
+    s11_mag: float
+    coupling_eff: float
+    selectivity: float | None = None
+    freq_hz: float | None = None
+
+    def to_dict(self) -> dict[str, float | None]:
+        return {
+            "s11_mag": self.s11_mag,
+            "coupling_eff": self.coupling_eff,
+            "selectivity": self.selectivity,
+            "freq_hz": self.freq_hz,
+        }
+
+
+@dataclass(frozen=True)
+class OpenemsCaseMetrics:
+    """Combined field-dump + port metrics for one openEMS case directory."""
+
+    selectivity: float | None
+    s11_mag: float | None
+    coupling_eff: float | None
+    field_dump: str | None
+    port_metrics_path: str | None
+
+    def to_dict(self) -> dict[str, float | str | None]:
+        return {
+            "openems_selectivity": self.selectivity,
+            "openems_s11_mag": self.s11_mag,
+            "openems_coupling_eff": self.coupling_eff,
+            "field_dump": self.field_dump,
+            "port_metrics_path": self.port_metrics_path,
+        }
 
 
 def h5py_available() -> bool:
@@ -79,6 +133,69 @@ def selectivity_from_e2(
     p_t = 0.5 * omega * EPS0 * eps_im_t * float(e2[target_mask].sum()) * cell_vol
     total = p_t + p_g
     return p_t / total if total > 0 else 0.0
+
+
+def load_port_metrics(path: Path | str) -> OpenemsPortMetrics:
+    """Load ``port_metrics.json`` written by exported openEMS Octave scripts."""
+    data = json.loads(Path(path).read_text())
+    return OpenemsPortMetrics(
+        s11_mag=float(data["s11_mag"]),
+        coupling_eff=float(data["coupling_eff"]),
+        selectivity=float(data["selectivity"]) if data.get("selectivity") is not None else None,
+        freq_hz=float(data["freq_hz"]) if data.get("freq_hz") is not None else None,
+    )
+
+
+def resolve_openems_case_paths(case_dir: Path) -> tuple[Path | None, Path | None]:
+    """Return ``(field_dump_h5, port_metrics_json)`` for an openEMS case folder."""
+    case_dir = Path(case_dir)
+    metrics = case_dir / "port_metrics.json"
+    port_path = metrics if metrics.is_file() else None
+
+    candidates = (
+        case_dir / "Et" / "Et_0000.h5",
+        case_dir / "Et_0000.h5",
+        case_dir / "Et" / "Et_0000",
+    )
+    field_path: Path | None = None
+    for p in candidates:
+        if p.is_file():
+            field_path = p
+            break
+    return field_path, port_path
+
+
+def ingest_openems_case(
+    case_dir: Path | str,
+    params: CavityParams,
+    materials: Materials,
+    *,
+    Lz: float = 0.36,
+) -> OpenemsCaseMetrics:
+    """Read field dump + port JSON from an openEMS run directory."""
+    case_dir = Path(case_dir)
+    field_path, port_path = resolve_openems_case_paths(case_dir)
+
+    selectivity: float | None = None
+    if field_path is not None and h5py_available():
+        selectivity = selectivity_from_openems_dump(field_path, params, materials, Lz=Lz)
+
+    s11_mag: float | None = None
+    coupling_eff: float | None = None
+    if port_path is not None:
+        port = load_port_metrics(port_path)
+        s11_mag = port.s11_mag
+        coupling_eff = port.coupling_eff
+        if selectivity is None and port.selectivity is not None:
+            selectivity = port.selectivity
+
+    return OpenemsCaseMetrics(
+        selectivity=selectivity,
+        s11_mag=s11_mag,
+        coupling_eff=coupling_eff,
+        field_dump=str(field_path) if field_path else None,
+        port_metrics_path=str(port_path) if port_path else None,
+    )
 
 
 def _load_e2_from_hdf5(path: Path) -> np.ndarray:

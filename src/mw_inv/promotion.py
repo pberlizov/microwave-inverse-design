@@ -226,6 +226,7 @@ def _gate_from_dict(block: dict | None) -> ValidationGateReport | None:
         passed=bool(block["passed"]),
         checks=checks,
         rank_agreement=block.get("rank_agreement", {}),
+        openems_diagnosis=block.get("openems_diagnosis"),
     )
 
 
@@ -244,5 +245,7 @@ def _rows_from_dict(block: dict) -> list[Any] | None:
             meep_2d_selectivity=r.get("meep_2d_selectivity"),
             meep_3d_primitive_selectivity=r.get("meep_3d_primitive_selectivity"),
             openems_selectivity=r.get("openems_selectivity"),
+            openems_s11_mag=r.get("openems_s11_mag"),
+            openems_coupling_eff=r.get("openems_coupling_eff"),
         ))
     return out

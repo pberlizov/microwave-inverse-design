@@ -74,3 +74,5 @@ def test_export_design_bundle(tmp_path):
     # Exported openEMS script writes dumps to a per-case directory for triangulation ingestion.
     text = bundle.openems_path.read_text()
     assert "openems_runs" in text
+    assert "port_metrics.json" in text
+    assert "calcPort" in text

@@ -71,6 +71,10 @@ def main() -> None:
             line += f"  MEEP3D={row.meep_3d_primitive_selectivity:.4f}"
         if row.openems_selectivity is not None:
             line += f"  openEMS={row.openems_selectivity:.4f}"
+        if row.openems_s11_mag is not None:
+            line += f"  |S11|={row.openems_s11_mag:.3f}"
+        if row.openems_coupling_eff is not None:
+            line += f"  coup={row.openems_coupling_eff:.3f}"
         print(line)
     print(f"  wrote {args.out}")
 

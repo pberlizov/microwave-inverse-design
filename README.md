@@ -221,6 +221,7 @@ python3 scripts/plot_fields.py --materials pyrite_in_calcite  # -> data/fields.n
 python3 scripts/run_pipeline.py --materials pyrite_in_calcite --trials 24  # Tier-1: bench→search→gate→manifest
 python3 scripts/run_pipeline.py --ore data/ores/massive_pyrite.json --trials 24  # Tier-2: deposit-grounded
 python3 scripts/run_pipeline.py --openems-top-k 3 --trials 40  # Tier-3: FDFD pre-screen → openEMS export
+python3 scripts/run_port_validation.py --out-dir data/port_validation  # A1 port harness
 python3 scripts/update_run_with_openems.py --run-dir data/runs/<RUN> --openems-dump-dir data/runs/<RUN>/design_exports/openems_runs
 python3 scripts/run_design_eval.py --preset composite:liberation  # unified FOM report
 python3 scripts/run_materials_catalog.py --pairs          # HMAP + gangue ε catalog

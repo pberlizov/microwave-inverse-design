@@ -15,7 +15,7 @@ from mw_inv.fdfd import Grid
 from mw_inv.geometry import Materials, build_scene
 from mw_inv.meep_3d import compare_fdfd_meep_3d
 from mw_inv.meep_compare import compare_fdfd_meep, meep_available
-from mw_inv.openems_postprocess import h5py_available, selectivity_from_openems_dump
+from mw_inv.openems_postprocess import h5py_available, ingest_openems_case
 
 
 @dataclass
@@ -25,6 +25,8 @@ class SolverRow:
     meep_2d_selectivity: float | None = None
     meep_3d_primitive_selectivity: float | None = None
     openems_selectivity: float | None = None
+    openems_s11_mag: float | None = None
+    openems_coupling_eff: float | None = None
     rel_err_meep_2d: float | None = None
     rel_err_meep_3d: float | None = None
     rel_err_openems: float | None = None
@@ -37,6 +39,8 @@ class SolverRow:
             "meep_2d_selectivity": self.meep_2d_selectivity,
             "meep_3d_primitive_selectivity": self.meep_3d_primitive_selectivity,
             "openems_selectivity": self.openems_selectivity,
+            "openems_s11_mag": self.openems_s11_mag,
+            "openems_coupling_eff": self.openems_coupling_eff,
             "rel_err_meep_2d": self.rel_err_meep_2d,
             "rel_err_meep_3d": self.rel_err_meep_3d,
             "rel_err_openems": self.rel_err_openems,
@@ -56,7 +60,7 @@ def triangulate_case(
     materials: Materials,
     *,
     Lz: float = 0.36,
-    openems_dump: Path | None = None,
+    openems_case_dir: Path | None = None,
 ) -> SolverRow:
     """FDFD reference + optional MEEP / openEMS for one design."""
     scene = build_scene(grid, case.params, materials)
@@ -82,11 +86,13 @@ def triangulate_case(
             row.meep_3d_primitive_selectivity = float(cmp3["meep_3d_primitive_selectivity"])
             row.rel_err_meep_3d = _rel_err(fdfd_sel, row.meep_3d_primitive_selectivity)
 
-    if openems_dump is not None and openems_dump.is_file():
-        row.openems_selectivity = selectivity_from_openems_dump(
-            openems_dump, case.params, materials, Lz=Lz,
-        )
-        row.rel_err_openems = _rel_err(fdfd_sel, row.openems_selectivity)
+    if openems_case_dir is not None and openems_case_dir.is_dir():
+        metrics = ingest_openems_case(openems_case_dir, case.params, materials, Lz=Lz)
+        row.openems_selectivity = metrics.selectivity
+        row.openems_s11_mag = metrics.s11_mag
+        row.openems_coupling_eff = metrics.coupling_eff
+        if metrics.selectivity is not None:
+            row.rel_err_openems = _rel_err(fdfd_sel, metrics.selectivity)
 
     return row
 
@@ -101,18 +107,12 @@ def triangulate_cases(
 ) -> list[SolverRow]:
     rows: list[SolverRow] = []
     for case in cases:
-        dump = None
+        case_dir: Path | None = None
         if openems_dump_dir is not None:
-            for name in (f"{case.label}_Et_0000.h5", f"Et_{case.label}_0000.h5", "Et_0000.h5", "Et/Et_0000.h5"):
-                p = openems_dump_dir / case.label / name
-                if p.is_file():
-                    dump = p
-                    break
-                p2 = openems_dump_dir / name
-                if p2.is_file() and len(cases) == 1:
-                    dump = p2
-                    break
-        rows.append(triangulate_case(case, grid, materials, Lz=Lz, openems_dump=dump))
+            candidate = openems_dump_dir / case.label
+            if candidate.is_dir():
+                case_dir = candidate
+        rows.append(triangulate_case(case, grid, materials, Lz=Lz, openems_case_dir=case_dir))
     return rows
 
 
