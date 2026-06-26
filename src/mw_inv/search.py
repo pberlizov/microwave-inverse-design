@@ -111,6 +111,7 @@ class Trial:
     contrast: float
     p_target: float
     p_total: float = 0.0           # total absorbed in charge (target + gangue)
+    coupling_eff: float = 1.0
 
 
 def evaluate_params(
@@ -130,6 +131,7 @@ def evaluate_params(
         contrast=rep.em_contrast,
         p_target=rep.p_target,
         p_total=rep.p_total,
+        coupling_eff=rep.coupling_eff,
     )
 
 
@@ -198,6 +200,7 @@ def trial_to_dict(trial: Trial) -> dict:
         "contrast": trial.contrast,
         "p_target": trial.p_target,
         "p_total": trial.p_total,
+        "coupling_eff": trial.coupling_eff,
         "params": trial.params,
     }
 
@@ -501,15 +504,39 @@ def best_robust(trials: list[RobustTrial]) -> RobustTrial:
 
 
 # ---------------------------------------------------------------------------
-# Multi-objective search (step 6): selectivity vs charge coupling (P_total)
+# Multi-objective search (C0): selectivity vs coupling_eff (+ optional arcing filter)
 # ---------------------------------------------------------------------------
 
 @dataclass
 class MultiTrial:
     params: dict
     selectivity: float
+    coupling_eff: float
     p_total: float
     contrast: float
+    arcing_risk: bool = False
+
+
+def _evaluate_multi_trial(
+    grid: Grid,
+    params: CavityParams,
+    materials: Materials | None,
+    *,
+    legacy: bool,
+    check_arcing: bool,
+) -> MultiTrial:
+    from mw_inv.design_evaluator import DesignEvaluator, preset_config
+
+    cfg = preset_config("em", materials=materials, legacy=legacy, check_arcing=check_arcing)
+    rep = DesignEvaluator(grid, cfg, preset="em").evaluate(params)
+    return MultiTrial(
+        params=rep.params,
+        selectivity=rep.em_selectivity,
+        coupling_eff=rep.coupling_eff,
+        p_total=rep.p_total,
+        contrast=rep.em_contrast,
+        arcing_risk=bool(rep.arcing_risk),
+    )
 
 
 def optuna_multi_search(
@@ -520,6 +547,7 @@ def optuna_multi_search(
     materials: Materials | None = None,
     *,
     legacy: bool = False,
+    check_arcing: bool = False,
 ) -> tuple[list[MultiTrial], "optuna.Study"]:
     import optuna
 
@@ -532,16 +560,19 @@ def optuna_multi_search(
 
     def objective(trial: "optuna.Trial") -> tuple[float, float]:
         vec = _suggest_vec(trial, space)
-        t = evaluate_params(grid, _params_from_vector(base, vec), materials, legacy=legacy)
-        mt = MultiTrial(
-            params=t.params,
-            selectivity=t.selectivity,
-            p_total=t.p_total,
-            contrast=t.contrast,
+        mt = _evaluate_multi_trial(
+            grid,
+            _params_from_vector(base, vec),
+            materials,
+            legacy=legacy,
+            check_arcing=check_arcing,
         )
-        trial.set_user_attr("contrast", t.contrast)
+        trial.set_user_attr("contrast", mt.contrast)
+        trial.set_user_attr("p_total", mt.p_total)
+        trial.set_user_attr("arcing_risk", mt.arcing_risk)
         trials.append(mt)
-        return t.selectivity, t.p_total
+        coupling = mt.coupling_eff if not (check_arcing and mt.arcing_risk) else 0.0
+        return mt.selectivity, coupling
 
     study = optuna.create_study(
         directions=["maximize", "maximize"],
@@ -551,14 +582,40 @@ def optuna_multi_search(
     return trials, study
 
 
+def pareto_front_trials(trials: list[MultiTrial], study: "optuna.Study") -> list[MultiTrial]:
+    """Trials on the recorded Pareto front (falls back to all trials if empty)."""
+    front = [trials[t.number] for t in study.best_trials if t.number < len(trials)]
+    return front or list(trials)
+
+
 def pareto_best_selectivity(trials: list[MultiTrial]) -> MultiTrial:
-    """Best selectivity on the recorded Pareto set."""
+    """Best selectivity on the recorded trial set."""
     return max(trials, key=lambda t: t.selectivity)
 
 
 def pareto_best_coupling(trials: list[MultiTrial]) -> MultiTrial:
-    """Best charge absorption on the recorded trial set."""
-    return max(trials, key=lambda t: t.p_total)
+    """Best coupling efficiency on the recorded trial set."""
+    return max(trials, key=lambda t: t.coupling_eff)
+
+
+def pareto_recommend(
+    trials: list[MultiTrial],
+    study: "optuna.Study",
+    *,
+    weight_selectivity: float = 0.6,
+    weight_coupling: float = 0.4,
+    exclude_arcing: bool = True,
+) -> MultiTrial:
+    """Pick a balanced design from the Pareto front using weighted objectives."""
+    front = pareto_front_trials(trials, study)
+    if exclude_arcing:
+        safe = [t for t in front if not t.arcing_risk]
+        if safe:
+            front = safe
+    total_w = weight_selectivity + weight_coupling
+    ws = weight_selectivity / total_w
+    wc = weight_coupling / total_w
+    return max(front, key=lambda t: ws * t.selectivity + wc * t.coupling_eff)
 
 
 # ---------------------------------------------------------------------------

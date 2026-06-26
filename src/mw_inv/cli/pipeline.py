@@ -18,12 +18,17 @@ from mw_inv.ore_profiles import (
     ore_summary,
 )
 from mw_inv.openems_export import write_calibration_model
+from mw_inv.openems_runner import (
+    octave_available,
+    run_openems_exports,
+    synthesize_port_dumps,
+)
 from mw_inv.promotion import PromotionTier, meets_tier
 from mw_inv.provenance import default_provenance
-from mw_inv.run_manifest import RunManifest, default_run_dir, finalize_promotion
+from mw_inv.run_manifest import RunManifest, default_run_dir
+from mw_inv.run_refresh import apply_triangulation_refresh
 from mw_inv.search import best, evaluate_params, optuna_search, random_search, top_k_trials, trial_to_dict
-from mw_inv.solver_triangulation import triangulate_from_search, write_triangulation_report
-from mw_inv.validation_gate import evaluate_gate
+from mw_inv.validation_gate import GateThresholds
 
 
 def _robustness_block(
@@ -145,14 +150,21 @@ def _write_bench_artifacts(
         "lab_measurements_path": lab_measurements_path,
         "probe_calibration_report_path": None,
         "phantom_study_report_path": None,
+        "gate": None,
     }
-    if measured_eps_path:
-        from mw_inv.phantom_calibration import compare_measured_vs_anchor
+    if measured_eps_path and Path(measured_eps_path).is_file():
+        from mw_inv.phantom_calibration import compare_measured_vs_anchor, evaluate_bench_gate
 
         report = compare_measured_vs_anchor(phantom_label, measured_eps_path)
         p = run_dir / "probe_calibration_report.json"
         p.write_text(json.dumps(report, indent=2))
         out["probe_calibration_report_path"] = str(p)
+        bench_gate = evaluate_bench_gate(
+            phantom_label,
+            measured_eps_path,
+            lab_measurements_path,
+        )
+        out["gate"] = bench_gate.to_dict()
 
     if run_study or lab_measurements_path:
         from mw_inv.fdfd import Grid
@@ -252,9 +264,14 @@ def main(argv: list[str] | None = None) -> None:
         help="minimum tier required to write openEMS export bundle",
     )
     ap.add_argument("--phantom", default=None, help="phantom label for bench_calibrated tier")
-    ap.add_argument("--measured-eps", default="data/measured_eps.json")
+    ap.add_argument(
+        "--measured-eps",
+        default=None,
+        help="probe-measured ε JSON (e.g. data/measured_eps.example.json)",
+    )
     ap.add_argument("--lab-measurements", default=None, help="bench measurements JSON for phantom compare")
     ap.add_argument("--bench-study", action="store_true", help="run phantom prediction/compare step")
+    ap.add_argument("--bench-enforce", action="store_true", help="fail pipeline if bench gate fails")
     ap.add_argument("--bench-grid", type=int, default=61)
     ap.add_argument("--bench-trials", type=int, default=12)
     ap.add_argument("--bench-seed", type=int, default=7701)
@@ -279,9 +296,47 @@ def main(argv: list[str] | None = None) -> None:
         default=0,
         help="FDFD pre-screen: export/triangulate untuned + top-K TPE trials (0 = legacy 3-case)",
     )
+    ap.add_argument(
+        "--run-openems",
+        action="store_true",
+        help="after export, run openEMS via Octave (run_openems_all.m) and refresh triangulation",
+    )
+    ap.add_argument(
+        "--synthesize-openems-dumps",
+        action="store_true",
+        help="after export, write synthetic port_metrics.json per case (CI/dev; no Octave)",
+    )
+    ap.add_argument(
+        "--openems-octave",
+        default="octave",
+        help="Octave executable for --run-openems",
+    )
+    ap.add_argument(
+        "--openems-timeout",
+        type=float,
+        default=None,
+        help="timeout in seconds for --run-openems (default: none)",
+    )
+    ap.add_argument(
+        "--openems-force",
+        action="store_true",
+        help="run openEMS even when the FDFD validation gate failed",
+    )
+    ap.add_argument(
+        "--gate-min-improvement",
+        type=float,
+        default=0.01,
+        help="minimum FDFD selectivity gain (tpe_best − untuned) for validation gate",
+    )
     args = ap.parse_args(argv)
     if args.materials and args.ore:
         ap.error("--materials and --ore are mutually exclusive")
+    if args.run_openems and args.synthesize_openems_dumps:
+        ap.error("--run-openems and --synthesize-openems-dumps are mutually exclusive")
+    if (args.run_openems or args.synthesize_openems_dumps) and args.skip_export:
+        ap.error("openEMS ingest requires export; omit --skip-export")
+    if args.run_openems and args.openems_dump_dir:
+        ap.error("use either --run-openems or --openems-dump-dir, not both")
 
     run_dir = Path(args.run_dir) if args.run_dir else default_run_dir()
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -394,53 +449,37 @@ def main(argv: list[str] | None = None) -> None:
             print(f"  manifest: {manifest_path}")
             raise SystemExit(3)
 
-    # --- gate / triangulation ---
+    # --- gate / triangulation (FDFD pre-check for export tier; openEMS refresh later) ---
     dump_dir = Path(args.openems_dump_dir) if args.openems_dump_dir else None
     top_k = args.openems_top_k if args.openems_top_k > 0 else None
-    rows = triangulate_from_search(
-        search_path, grid, materials, openems_dump_dir=dump_dir, top_k=top_k,
-    )
-    tri_path = run_dir / "solver_triangulation.json"
-    write_triangulation_report(
-        tri_path,
-        rows,
+    gate_thresholds = GateThresholds(min_fdfd_improvement=args.gate_min_improvement)
+    refresh = apply_triangulation_refresh(
+        manifest,
+        run_dir,
+        search_path=search_path,
+        grid=grid,
+        materials=materials,
         materials_label=materials_label,
-        meta={
-            "openems_dump_dir": str(dump_dir) if dump_dir else None,
+        openems_dump_dir=dump_dir,
+        top_k=top_k,
+        gate_thresholds=gate_thresholds,
+        triangulation_meta={
             "openems_top_k": args.openems_top_k if args.openems_top_k > 0 else None,
         },
     )
-    gate = evaluate_gate(rows)
-    gate_path = run_dir / "validation_gate_report.json"
-    gate_payload = {
-        "materials": materials_label,
-        "search_source": str(search_path),
-        "openems_dump_dir": str(dump_dir) if dump_dir else None,
-        "gate": gate.to_dict(),
-        "triangulation": [r.to_dict() for r in rows],
-    }
-    gate_path.write_text(json.dumps(gate_payload, indent=2))
-
-    manifest.triangulation_path = str(tri_path)
-    manifest.triangulation = {
-        "rows": [r.to_dict() for r in rows],
-        "rank_agreement": gate.rank_agreement,
-        "openems_dump_dir": str(dump_dir) if dump_dir else None,
-    }
-    manifest.gate_path = str(gate_path)
-    manifest.gate = gate.to_dict()
-
-    assessment = finalize_promotion(manifest)
+    gate = refresh.gate
+    assessment = refresh.assessment
     print(f"  gate: {'PASS' if gate.passed else 'FAIL'}  promotion tier: {assessment.tier.value}")
 
     # --- export (tier-guarded) ---
+    export_bundles = []
     export_tier = PromotionTier(args.export_tier)
     if not args.skip_export:
         if meets_tier(assessment.tier, export_tier):
             export_dir = run_dir / "design_exports"
             write_calibration_model(export_dir / "calibration_cavity.m")
             cases = load_search_cases(search_path, top_k=top_k)
-            bundles = export_all_cases(export_dir, cases, materials, grid_n=args.grid)
+            export_bundles = export_all_cases(export_dir, cases, materials, grid_n=args.grid)
             manifest.export_dir = str(export_dir)
             manifest.export_summary = {
                 "openems_top_k": args.openems_top_k if args.openems_top_k > 0 else None,
@@ -451,15 +490,87 @@ def main(argv: list[str] | None = None) -> None:
                         "openems_model": str(b.openems_path.name),
                         "manifest": str(b.manifest_path.name),
                     }
-                    for b in bundles
+                    for b in export_bundles
                 ],
             }
-            print(f"  export: {len(bundles)} cases -> {export_dir}")
+            print(f"  export: {len(export_bundles)} cases -> {export_dir}")
         else:
             manifest.notes.append(
                 f"export skipped: tier {assessment.tier.value} < required {export_tier.value}"
             )
             print(f"  export: SKIPPED (tier {assessment.tier.value} < {export_tier.value})")
+
+    # --- openEMS run / synthetic dumps → refresh triangulation ---
+    post_openems = dump_dir
+    if args.run_openems or args.synthesize_openems_dumps:
+        if not gate.passed and not args.openems_force:
+            manifest.notes.append("openEMS skipped: FDFD gate failed (use --openems-force to override)")
+            print("  openEMS: SKIPPED (FDFD gate failed)")
+        elif not manifest.export_dir:
+            manifest.notes.append("openEMS step skipped: export bundle missing")
+            print("  openEMS: SKIPPED (no export bundle)")
+        else:
+            export_dir = Path(manifest.export_dir)
+            openems_record: dict[str, object] = {
+                "mode": "octave" if args.run_openems else "synthetic",
+                "export_dir": str(export_dir),
+            }
+            if args.run_openems:
+                if not octave_available(args.openems_octave):
+                    raise SystemExit(
+                        f"Octave not found ({args.openems_octave!r}). "
+                        "Install Octave + openEMS, or use --synthesize-openems-dumps for CI."
+                    )
+                result = run_openems_exports(
+                    export_dir,
+                    octave_cmd=args.openems_octave,
+                    timeout_s=args.openems_timeout,
+                )
+                openems_record.update({
+                    "returncode": result.returncode,
+                    "stdout_tail": result.stdout[-4000:] if result.stdout else "",
+                    "stderr_tail": result.stderr[-4000:] if result.stderr else "",
+                })
+                if result.returncode != 0:
+                    manifest.notes.append(f"openEMS batch failed (rc={result.returncode})")
+                    print(f"  openEMS: FAIL (rc={result.returncode})")
+                else:
+                    print(f"  openEMS: batch complete -> {result.dump_dir}")
+                post_openems = result.dump_dir
+            else:
+                post_openems = synthesize_port_dumps(export_dir, export_bundles)
+                print(f"  openEMS: synthetic port dumps -> {post_openems}")
+
+            manifest.cli.setdefault("openems", []).append(openems_record)
+            refresh = apply_triangulation_refresh(
+                manifest,
+                run_dir,
+                search_path=search_path,
+                grid=grid,
+                materials=materials,
+                materials_label=materials_label,
+                openems_dump_dir=post_openems,
+                top_k=top_k,
+                gate_thresholds=gate_thresholds,
+                triangulation_meta={
+                    "openems_top_k": args.openems_top_k if args.openems_top_k > 0 else None,
+                    "openems_mode": openems_record["mode"],
+                },
+            )
+            gate = refresh.gate
+            assessment = refresh.assessment
+            print(
+                f"  gate (openEMS): {'PASS' if gate.passed else 'FAIL'}  "
+                f"promotion tier: {assessment.tier.value}"
+            )
+
+    if args.phantom and manifest.bench.get("gate"):
+        bench_passed = bool(manifest.bench["gate"].get("passed"))
+        print(f"  bench gate: {'PASS' if bench_passed else 'FAIL'}")
+        if args.bench_enforce and not bench_passed:
+            manifest_path = run_dir / "manifest.json"
+            manifest.write(manifest_path)
+            raise SystemExit(4)
 
     manifest_path = run_dir / "manifest.json"
     manifest.write(manifest_path)

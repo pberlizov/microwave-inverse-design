@@ -86,6 +86,7 @@ def export_design_bundle(
     *,
     grid_n: int = 81,
     Lz: float = 0.36,
+    openems_port_mode: str = "wall_lumped",
 ) -> ExportBundle:
     """Write openEMS + FDFD sidecar + JSON manifest for one design case."""
     out_dir = Path(out_dir)
@@ -102,6 +103,7 @@ def export_design_bundle(
         Lz=Lz,
         sim_path=f"./openems_runs/{tag}",
         sim_csx=f"mw_inv_{tag}",
+        port_mode=openems_port_mode,
     )
     npz_path = export_scene_npz(
         out_dir / f"{tag}_scene.npz", case.params, materials, grid_n=grid_n,
@@ -118,6 +120,7 @@ def export_design_bundle(
         },
         "openems_function": func,
         "openems_model": str(m_path.name),
+        "openems_port_mode": openems_port_mode,
         "scene_npz": str(npz_path.name),
         "materials": {
             "target_eps": [materials.target.real, materials.target.imag],

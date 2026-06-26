@@ -158,8 +158,9 @@ skin depth, plus grid discreteness, put the collapse near d/δ≈1.8 rather than
   [src/mw_inv/dielectric_data.py](src/mw_inv/dielectric_data.py)): cited ε and μ with
   tabulated ε(T) anchors; `Materials.from_pair(..., target_T_K=773)` for heated target.
 - **Geometry** ([src/mw_inv/geometry.py](src/mw_inv/geometry.py)): **EXPERIMENTAL**
-  manufacturable *parameters* (wall feed, stub, plate, bed) — still a 2D point source
-  and Im(ε) PEC, not matched ports. Legacy baffle + 16-cell tuner (deprecated bound).
+  manufacturable *parameters* (wall feed, stub, plate, bed) — 2D distributed line-port
+  excitation and Im(ε) PEC (no matched ports in FDFD). Legacy baffle + 16-cell tuner
+  (deprecated bound).
 - **Search** ([src/mw_inv/search.py](src/mw_inv/search.py)): Optuna TPE + random control
   over manufacturable geometry (~10 continuous + feed wall). Use ``--legacy`` for the
   old 6-knob baffle search; ``run_field_search.py`` is deprecated.
@@ -178,7 +179,8 @@ skin depth, plus grid discreteness, put the collapse near d/δ≈1.8 rather than
   optional MEEP 2D (**experimental**); primitive 3D in [meep_3d.py](src/mw_inv/meep_3d.py)
   (**experimental**); legacy extrusion (**WIP**, quasi-3D only).
 - **openEMS** ([src/mw_inv/openems_export.py](src/mw_inv/openems_export.py)): **EXPERIMENTAL**
-  runnable Octave script (CSXCAD geometry, lumped port, field dump) — run locally with openEMS.
+  runnable Octave script (CSXCAD geometry, wall feed lumped port, |S11|/coupling, field dump)
+  — run locally with openEMS.
 - **Lab phantoms** ([src/mw_inv/phantom.py](src/mw_inv/phantom.py), [phantom_data.py](src/mw_inv/phantom_data.py)):
   **EXPERIMENTAL** recipe-linked saline ε, FDFD + thermal ΔT predictions, bench compare via JSON.
 
@@ -223,6 +225,8 @@ python3 scripts/run_pipeline.py --ore data/ores/massive_pyrite.json --trials 24 
 python3 scripts/run_pipeline.py --openems-top-k 3 --trials 40  # Tier-3: FDFD pre-screen → openEMS export
 python3 scripts/run_port_validation.py --out-dir data/port_validation  # A1 port harness
 python3 scripts/update_run_with_openems.py --run-dir data/runs/<RUN> --openems-dump-dir data/runs/<RUN>/design_exports/openems_runs
+mw-inv-port-validation --out-dir data/port_validation  # same as scripts/run_port_validation.py
+mw-inv-update-run-openems --run-dir data/runs/<RUN> --openems-dump-dir data/runs/<RUN>/design_exports/openems_runs
 python3 scripts/run_design_eval.py --preset composite:liberation  # unified FOM report
 python3 scripts/run_materials_catalog.py --pairs          # HMAP + gangue ε catalog
 python3 scripts/run_benchmarks.py                                    # literature benchmark suite

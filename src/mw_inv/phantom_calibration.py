@@ -90,3 +90,100 @@ def compare_measured_vs_anchor(phantom_label: str, measured_path: Path | str) ->
             "method": meas.method,
         })
     return {"phantom": phantom_label, "comparisons": rows}
+
+
+@dataclass(frozen=True)
+class BenchGateCheck:
+    name: str
+    passed: bool
+    detail: str
+
+
+@dataclass
+class BenchGateReport:
+    passed: bool
+    checks: list[BenchGateCheck]
+    probe_calibration: dict | None = None
+
+    def to_dict(self) -> dict:
+        return {
+            "passed": self.passed,
+            "checks": [{"name": c.name, "passed": c.passed, "detail": c.detail} for c in self.checks],
+            "probe_calibration": self.probe_calibration,
+        }
+
+
+def evaluate_bench_gate(
+    phantom_label: str,
+    measured_eps_path: Path | str,
+    lab_measurements_path: Path | str | None = None,
+    *,
+    max_real_drift: float = 1.5,
+    max_imag_drift: float = 0.5,
+) -> BenchGateReport:
+    """Pass/fail bench calibration inputs for ``bench_calibrated`` promotion."""
+    from mw_inv.promotion import _bench_calibration_ok
+
+    path = Path(measured_eps_path)
+    checks: list[BenchGateCheck] = []
+    probe_report: dict | None = None
+
+    if not path.is_file():
+        checks.append(BenchGateCheck("measured_eps_present", False, f"missing {path}"))
+        return BenchGateReport(passed=False, checks=checks)
+
+    probe_report = compare_measured_vs_anchor(phantom_label, path)
+    for row in probe_report.get("comparisons", []):
+        if row.get("status") == "missing":
+            checks.append(BenchGateCheck(
+                f"batch_{row.get('batch', '?')}",
+                False,
+                "missing measured batch",
+            ))
+            continue
+        dr = abs(float(row.get("drift_real", 0.0)))
+        di = abs(float(row.get("drift_imag", 0.0)))
+        ok = dr <= max_real_drift and di <= max_imag_drift
+        checks.append(BenchGateCheck(
+            f"eps_drift_{row.get('batch', row.get('role', '?'))}",
+            ok,
+            f"Δε′={row.get('drift_real', 0):.3f}, Δε″={row.get('drift_imag', 0):.3f}",
+        ))
+
+    if lab_measurements_path:
+        lp = Path(lab_measurements_path)
+        if not lp.is_file():
+            checks.append(BenchGateCheck("lab_measurements_present", False, f"missing {lp}"))
+        else:
+            import json
+
+            payload = json.loads(lp.read_text())
+            rows = payload if isinstance(payload, list) else payload.get("measurements", [])
+            matches = [r for r in rows if r.get("phantom") == phantom_label]
+            if not matches:
+                checks.append(BenchGateCheck("lab_phantom_match", False, f"no rows for {phantom_label!r}"))
+            else:
+                rank_ok = any(
+                    float(r["measured_delta_T_K"]) > float(r["untuned_measured_delta_T_K"])
+                    for r in matches
+                    if r.get("untuned_measured_delta_T_K") is not None
+                )
+                checks.append(BenchGateCheck(
+                    "lab_rank_optimized_beats_untuned",
+                    rank_ok,
+                    f"{len(matches)} bench record(s) for {phantom_label}",
+                ))
+
+    promotion_ok = _bench_calibration_ok(
+        phantom_label,
+        path,
+        lab_measurements_path,
+        max_real_drift=max_real_drift,
+        max_imag_drift=max_imag_drift,
+    )
+    checks.append(BenchGateCheck(
+        "bench_calibrated_requirements",
+        promotion_ok,
+        "probe ε drift + optional lab rank",
+    ))
+    return BenchGateReport(passed=promotion_ok, checks=checks, probe_calibration=probe_report)

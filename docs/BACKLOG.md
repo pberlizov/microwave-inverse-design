@@ -12,10 +12,17 @@ Conventions:
 
 ## Milestones (recommended order)
 
-1. **M1 — Solver-triangulated** (reach `solver_triangulated` tier consistently)
-2. **M2 — Bench-calibrated** (reach `bench_calibrated` on gel phantoms)
+1. **M1 — Solver-triangulated** (reach `solver_triangulated` tier consistently) — **one-command path done** (`--run-openems` / `--synthesize-openems-dumps`)
+2. **M2 — Bench-calibrated** (reach `bench_calibrated` on gel phantoms) — **pipeline path done** (`--phantom`, `--measured-eps`, `--lab-measurements`, `evaluate_bench_gate`)
 3. **M3 — Deposit-calibrated** (new tier: measured ore ε(f,T,moisture) + validation)
 4. **M4 — Pilot-ready** (new tier: safety constraints + repeatability + throughput metrics)
+
+## Backlog mapping (deferred from “ports + productization” scope)
+
+- **Industrial spec + constraints**: see Epics **C** (objectives/constraints/safety) and **H** (manufacturing handoff).
+- **Coupled physics where it changes decisions**: see Epic **E** (EM–thermal–mechanical).
+- **Staged calibration/validation loop**: see Epics **E** (phantoms) and **D** (measured ore ε).
+- **Robust / uncertainty-aware optimization**: see Epics **C** and **D** (materials uncertainty).
 
 ## Epic A — Real ports, power, and coupling (SOTA + industry blocker)
 
@@ -42,14 +49,21 @@ Done when:
 
 ### A1 (P0) Replace “point source” excitation with a port model for *truth* solvers
 
-**Status (partial):** openEMS exports use coax-gap ``AddLumpedPort`` + ``calcPort``;
-each run writes ``port_metrics.json`` (|S11|, coupling_eff, selectivity). Python ingests
+**Status (partial):** openEMS exports use a **wall-mounted lumped port** (``AddLumpedPort``)
+that tracks the optimised feed (wall + along-wall + stub depth) and reports matched-port
+metrics via ``calcPort``; each run writes ``port_metrics.json`` (|S11|, coupling_eff, selectivity).
+Python ingests
 via ``openems_postprocess.ingest_openems_case``; triangulation rows carry
 ``openems_s11_mag`` / ``openems_coupling_eff``; gate adds coupling-floor checks and
 ``openems_diagnosis`` (ranking mismatch vs coupling collapse).
 Harness: ``scripts/run_port_validation.py``.
 
-**Remaining:** FDFD port model (A2); automated Octave runner in CI.
+**M1 one-command (done):** ``mw-inv-pipeline --run-openems`` runs Octave on the export
+bundle and refreshes triangulation/gate/promotion; ``--synthesize-openems-dumps`` for
+CI without Octave. Shared refresh: ``run_refresh.apply_triangulation_refresh``;
+``scripts/update_run_with_openems.py`` for post-hoc ingest.
+
+**Remaining:** automated Octave runner in CI (optional job with openEMS container).
 
 Implementation steps:
 1. Treat openEMS as the first “port-truth” engine (already exportable via
@@ -113,6 +127,12 @@ Done when:
 ### C0 (P0) Multi-objective search: selectivity × coupling × safety
 **Why:** Industrial designs trade off selectivity, throughput, matching, and safety.
 
+**Status (partial):** ``optuna_multi_search`` maximises selectivity + ``coupling_eff``;
+``pareto_recommend()`` weighted picker; ``--check-arcing`` filters risky trials.
+``scripts/run_multi_search.py`` writes Pareto front + recommendation JSON.
+
+**Remaining:** hotspot ΔT constraint; wire multi-objective winner into pipeline export.
+
 Implementation steps:
 1. Add objectives/constraints:
    - maximize selectivity,
@@ -157,6 +177,11 @@ Done when:
 ## Epic E — EM–thermal–mechanical closure (industry relevance)
 
 ### E0 (P0) Calibrated thermal predictions on phantoms (close `bench_calibrated`)
+
+**Status (partial):** ``data/measured_eps.example.json`` + ``evaluate_bench_gate()``;
+pipeline records ``manifest.bench.gate``; ``--bench-enforce`` flag; M2 integration test
+reaches ``bench_calibrated`` with synthetic openEMS + lab example JSON.
+
 Implementation steps:
 1. Follow `docs/BENCH_PROTOCOL.md` to collect probe ε + ΔT bench JSON.
 2. Automate ingest and comparison (`phantom_calibration.py`, `run_phantom_study.py`).
@@ -186,9 +211,10 @@ Done when:
 
 ### F1 (P2) Multi-fidelity optimization (FDFD pre-screen → openEMS truth)
 
-**Status (partial):** `--openems-top-k` on `mw-inv-pipeline` / `export_design.py` stores
+**Status (partial):** ``--openems-top-k`` on `mw-inv-pipeline` / `export_design.py` stores
 `tpe_top_k` in search JSON and exports untuned + top-K FDFD winners for openEMS validation.
 Use `scripts/update_run_with_openems.py` after Octave runs to refresh promotion tier.
+**Promotion-aware:** openEMS run/synthesize skipped when FDFD gate fails (``--openems-force`` to override).
 
 Implementation steps:
 1. Use FDFD to filter candidates; periodically validate with openEMS and update a surrogate.
@@ -234,4 +260,3 @@ Implementation steps:
 
 Done when:
 - A selected design can be handed to a mechanical build with tolerances and acceptance checks.
-

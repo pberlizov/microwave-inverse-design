@@ -29,3 +29,6 @@ jobs:
 
       - name: Tier-1 pipeline smoke
         run: python scripts/run_pipeline.py --materials pyrite_in_calcite --trials 6 --grid 41 --skip-export
+
+      - name: M1 solver-triangulated smoke (synthetic openEMS)
+        run: python scripts/run_pipeline.py --materials pyrite_in_calcite --trials 8 --grid 41 --gate-min-improvement 0 --synthesize-openems-dumps --run-dir /tmp/mw_inv_m1_ci

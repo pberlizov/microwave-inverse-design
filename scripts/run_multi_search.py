@@ -1,11 +1,12 @@
-"""Multi-objective search: selectivity vs charge coupling (roadmap step 6).
+"""Multi-objective search: selectivity vs coupling efficiency (backlog C0).
 
-Pareto-optimal tradeoff between selective heating and total absorbed power in the
-charge — avoids geometries that 'win' by absorbing almost nothing.
+Pareto tradeoff between selective heating and energy-consistent coupling — avoids
+geometries that 'win' on selectivity while routing power into structure.
 
     python scripts/run_multi_search.py --materials pyrite_in_calcite --trials 40
+    python scripts/run_multi_search.py --check-arcing --trials 40
 
-Writes data/multi_search_summary.json with Pareto highlights.
+Writes data/multi_search_summary.json with Pareto highlights and a weighted recommendation.
 """
 
 from __future__ import annotations
@@ -26,6 +27,8 @@ from mw_inv.search import (  # noqa: E402
     optuna_multi_search,
     pareto_best_coupling,
     pareto_best_selectivity,
+    pareto_front_trials,
+    pareto_recommend,
 )
 
 
@@ -35,6 +38,9 @@ def main() -> None:
     ap.add_argument("--trials", type=int, default=40)
     ap.add_argument("--grid", type=int, default=61)
     ap.add_argument("--seed", type=int, default=3307)
+    ap.add_argument("--check-arcing", action="store_true", help="penalise / filter arcing-risk trials")
+    ap.add_argument("--weight-selectivity", type=float, default=0.6)
+    ap.add_argument("--weight-coupling", type=float, default=0.4)
     ap.add_argument("--out", type=str, default="data/multi_search_summary.json")
     args = ap.parse_args()
 
@@ -43,44 +49,77 @@ def main() -> None:
     baseline = evaluate_params(grid, CavityParams(), materials)
 
     t0 = time.time()
-    trials, study = optuna_multi_search(grid, args.trials, args.seed, materials=materials)
+    trials, study = optuna_multi_search(
+        grid,
+        args.trials,
+        args.seed,
+        materials=materials,
+        check_arcing=args.check_arcing,
+    )
     elapsed = time.time() - t0
 
     best_sel = pareto_best_selectivity(trials)
-    best_p = pareto_best_coupling(trials)
-    pareto = study.best_trials
+    best_coupling = pareto_best_coupling(trials)
+    recommended = pareto_recommend(
+        trials,
+        study,
+        weight_selectivity=args.weight_selectivity,
+        weight_coupling=args.weight_coupling,
+        exclude_arcing=args.check_arcing,
+    )
+    pareto = pareto_front_trials(trials, study)
 
     summary = {
         "materials": args.materials,
         "trials": args.trials,
+        "objectives": ["em_selectivity", "coupling_eff"],
+        "check_arcing": args.check_arcing,
         "baseline": {
             "selectivity": baseline.selectivity,
+            "coupling_eff": baseline.coupling_eff,
             "p_total": baseline.p_total,
             "contrast": baseline.contrast,
         },
         "best_selectivity": {
             "selectivity": best_sel.selectivity,
+            "coupling_eff": best_sel.coupling_eff,
             "p_total": best_sel.p_total,
             "contrast": best_sel.contrast,
+            "arcing_risk": best_sel.arcing_risk,
             "params": best_sel.params,
         },
         "best_coupling": {
-            "selectivity": best_p.selectivity,
-            "p_total": best_p.p_total,
-            "contrast": best_p.contrast,
-            "params": best_p.params,
+            "selectivity": best_coupling.selectivity,
+            "coupling_eff": best_coupling.coupling_eff,
+            "p_total": best_coupling.p_total,
+            "contrast": best_coupling.contrast,
+            "arcing_risk": best_coupling.arcing_risk,
+            "params": best_coupling.params,
+        },
+        "recommended": {
+            "weights": {
+                "selectivity": args.weight_selectivity,
+                "coupling": args.weight_coupling,
+            },
+            "selectivity": recommended.selectivity,
+            "coupling_eff": recommended.coupling_eff,
+            "p_total": recommended.p_total,
+            "arcing_risk": recommended.arcing_risk,
+            "params": recommended.params,
         },
         "pareto_count": len(pareto),
         "pareto_front": [
             {
-                "selectivity": t.values[0],
-                "p_total": t.values[1],
-                "params": trials[t.number].params if t.number < len(trials) else {},
+                "selectivity": t.selectivity,
+                "coupling_eff": t.coupling_eff,
+                "p_total": t.p_total,
+                "arcing_risk": t.arcing_risk,
+                "params": t.params,
             }
             for t in pareto[:12]
         ],
         "seconds": round(elapsed, 1),
-        "note": "Two-objective: maximise selectivity AND total charge absorption.",
+        "note": "Two-objective: maximise selectivity AND coupling_eff (charge power fraction).",
     }
 
     out = Path(args.out)
@@ -88,9 +127,21 @@ def main() -> None:
     out.write_text(json.dumps(summary, indent=2))
 
     print(f"=== Multi-objective search ({args.materials}) ===")
-    print(f"  baseline sel / P_charge   : {baseline.selectivity:.4f} / {baseline.p_total:.3e}")
-    print(f"  best selectivity          : {best_sel.selectivity:.4f}  (P={best_sel.p_total:.3e})")
-    print(f"  best coupling             : sel={best_p.selectivity:.4f}  (P={best_p.p_total:.3e})")
+    print(
+        f"  baseline sel / coupling : {baseline.selectivity:.4f} / {baseline.coupling_eff:.4f}"
+    )
+    print(
+        f"  best selectivity        : {best_sel.selectivity:.4f}  "
+        f"(coupling={best_sel.coupling_eff:.4f})"
+    )
+    print(
+        f"  best coupling           : sel={best_coupling.selectivity:.4f}  "
+        f"(coupling={best_coupling.coupling_eff:.4f})"
+    )
+    print(
+        f"  recommended (weighted)  : sel={recommended.selectivity:.4f}  "
+        f"coupling={recommended.coupling_eff:.4f}"
+    )
     print(f"  Pareto points             : {len(pareto)}")
     print(f"  seconds                   : {elapsed:.1f}")
     print(f"  wrote {out}")

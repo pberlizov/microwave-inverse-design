@@ -1,0 +1,23 @@
+{
+  "description": "Example open-coax probe batches for saline gel phantoms (2.45 GHz). Copy to measured_eps.json and replace with lab values.",
+  "batches": [
+    {
+      "label": "salt_2pct",
+      "salt_wt_percent": 2.0,
+      "eps_real": 16.0,
+      "eps_imag": 3.5,
+      "freq_hz": 2450000000.0,
+      "method": "open_coax_probe",
+      "notes": "Matches Gabriel-scaled anchor for saline_2_vs_0.5 target gel."
+    },
+    {
+      "label": "salt_0.5pct",
+      "salt_wt_percent": 0.5,
+      "eps_real": 7.0,
+      "eps_imag": 0.35,
+      "freq_hz": 2450000000.0,
+      "method": "open_coax_probe",
+      "notes": "Matches Gabriel-scaled anchor for saline_2_vs_0.5 gangue gel."
+    }
+  ]
+}

@@ -11,6 +11,7 @@ profiles, templates) with **generated outputs** (figures, JSON summaries, export
 - `data/ores/` — example ore profiles (QEMSCAN/assay-style JSON) used by ingest and
   `--ore` flows.
 - `data/measured_eps.template.json` — template for bench dielectric-probe ingestion.
+- `data/measured_eps.example.json` — zero-drift example for `saline_2_vs_0.5` (CI / M2 smoke).
 - `data/lab_measurements.example.json` — example bench measurement payload.
 
 ## Generated artifacts (do not commit by default)

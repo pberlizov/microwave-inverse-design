@@ -1,0 +1,23 @@
+{
+  "description": "Open-coax probe measurements at 2.45 GHz — copy to measured_eps.json after bench",
+  "batches": [
+    {
+      "label": "salt_2pct",
+      "salt_wt_percent": 2.0,
+      "eps_real": 16.0,
+      "eps_imag": 3.5,
+      "freq_hz": 2.45e9,
+      "method": "open_coax_probe",
+      "notes": "Replace with your batch measurement"
+    },
+    {
+      "label": "salt_0.5pct",
+      "salt_wt_percent": 0.5,
+      "eps_real": 7.0,
+      "eps_imag": 0.35,
+      "freq_hz": 2.45e9,
+      "method": "open_coax_probe",
+      "notes": "Replace with your batch measurement"
+    }
+  ]
+}

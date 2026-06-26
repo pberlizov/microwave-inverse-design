@@ -1,0 +1,15 @@
+[
+  {
+    "phantom": "saline_2_vs_0.5",
+    "measured_delta_T_K": 12.5,
+    "untuned_measured_delta_T_K": 8.2,
+    "measured_selectivity": 0.62,
+    "notes": "Example bench record — replace with your gel batch measurements."
+  },
+  {
+    "phantom": "saline_3_vs_0",
+    "measured_delta_T_K": 18.0,
+    "untuned_measured_delta_T_K": 11.0,
+    "measured_selectivity": 0.71
+  }
+]

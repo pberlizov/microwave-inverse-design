@@ -57,7 +57,17 @@ def test_multi_search_returns_pareto():
     assert len(trials) == 6
     assert len(study.directions) == 2
     base = evaluate_params(GRID, CavityParams(), MATS)
-    assert base.p_total > 0.0
+    assert base.coupling_eff > 0.0
+    assert all(0.0 <= t.coupling_eff <= 1.0 for t in trials)
+
+
+def test_pareto_recommend_balances_objectives():
+    from mw_inv.search import pareto_recommend
+
+    trials, study = optuna_multi_search(GRID, n_trials=8, seed=1, materials=MATS)
+    rec = pareto_recommend(trials, study, weight_selectivity=0.5, weight_coupling=0.5)
+    assert 0.0 <= rec.selectivity <= 1.0
+    assert 0.0 <= rec.coupling_eff <= 1.0
 
 
 def test_frequency_robust_spreads_with_freq():
