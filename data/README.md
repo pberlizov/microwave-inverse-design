@@ -12,8 +12,17 @@ profiles, templates) with **generated outputs** (figures, JSON summaries, export
   `--ore` flows.
 - `data/measured_eps.template.json` — template for bench dielectric-probe ingestion.
 - `data/measured_dielectrics/` — versioned deposit ε(f,T,moisture) datasets (commit curated examples).
+- `data/literature_tables/` — curated source tables for literature ingest adapters.
+- `data/datasets_catalog.json` — open/online dataset registry (`docs/REAL_DATA_SOURCES.md`).
+  Run `python scripts/ingest_literature_datasets.py` or `python scripts/prepare_test_data.py` before testing.
 - `data/*.example.json`, `data/*.template.json` — small fixtures for CI and copy-paste.
 - `data/lab_measurements.example.json` — example bench measurement payload.
+- `data/third_party/touchstone/` — vendored Touchstone examples for Stage-A RF ingest.
+
+Run **`python scripts/run_real_data_eval.py`** to FDFD-evaluate every source above
+(ores, deposit ε points, benchmarks, pairs, phantoms, bench JSON). Copy
+`measured_eps.example.json` → `measured_eps.json` (and lab JSON likewise) to include
+your probe/bench measurements instead of CI fixtures.
 
 ## Generated artifacts (do not commit by default)
 

@@ -1,0 +1,22 @@
+{
+  "label": "forster_good_moly",
+  "source": "forster_phd_2023",
+  "heating_class": "III_good",
+  "hmap_wt_percent": 16.0,
+  "fractions": {
+    "quartz": 0.4,
+    "molybdenite": 0.12,
+    "pyrite": 0.04
+  },
+  "gangue_mineral": "quartz",
+  "texture": {
+    "class": "disseminated",
+    "mean_grain_radius_m": 0.002
+  },
+  "measured_dielectrics": {
+    "path": "../../measured_dielectrics/forster_hmap_minerals_v1.json",
+    "target_phase": "molybdenite",
+    "gangue_phase": "quartz",
+    "default_moisture_wt_percent": 0.0
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "source": "Materials Project / Zenodo 4987552 static DFPT dielectric tensors (ore-relevant subset)",
+  "citations": [
+    "https://zenodo.org/records/4987552",
+    "https://materialsproject.org/"
+  ],
+  "note": "Static ε (no loss); use for mineral ranking only — not ISM loss calibration.",
+  "minerals": [
+    {"label": "quartz_mp", "formula": "SiO2", "mp_id": "mp-7000", "eps_iso": 4.64, "source": "MP DFPT α-quartz"},
+    {"label": "calcite_mp", "formula": "CaCO3", "mp_id": "mp-3952", "eps_iso": 8.74, "source": "MP DFPT calcite"},
+    {"label": "pyrite_mp", "formula": "FeS2", "mp_id": "mp-340", "eps_iso": 9.21, "source": "MP DFPT pyrite"},
+    {"label": "magnetite_mp", "formula": "Fe3O4", "mp_id": "mp-19306", "eps_iso": 32.8, "source": "MP DFPT magnetite (static bulk)"},
+    {"label": "chalcopyrite_mp", "formula": "CuFeS2", "mp_id": "mp-1592", "eps_iso": 10.4, "source": "MP DFPT chalcopyrite"},
+    {"label": "hematite_mp", "formula": "Fe2O3", "mp_id": "mp-19770", "eps_iso": 12.5, "source": "MP DFPT hematite"},
+    {"label": "galena_mp", "formula": "PbS", "mp_id": "mp-2201", "eps_iso": 17.8, "source": "MP DFPT galena (static)"},
+    {"label": "sphalerite_mp", "formula": "ZnS", "mp_id": "mp-10695", "eps_iso": 8.92, "source": "MP DFPT sphalerite"},
+    {"label": "dolomite_mp", "formula": "CaMg(CO3)2", "mp_id": "mp-7654", "eps_iso": 7.35, "source": "MP DFPT dolomite"},
+    {"label": "molybdenite_mp", "formula": "MoS2", "mp_id": "mp-2815", "eps_iso": 6.8, "source": "MP DFPT 2H-MoS2 in-plane avg"}
+  ]
+}

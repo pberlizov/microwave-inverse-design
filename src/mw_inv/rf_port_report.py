@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from mw_inv.openems_postprocess import OpenemsPortMetrics, load_port_metrics
-from mw_inv.vna_s11 import S1PTrace, load_s1p, summary_s11_metrics
+from mw_inv.vna_s11 import S1PTrace, load_touchstone_s11, summary_s11_metrics
 
 
 @dataclass(frozen=True)
@@ -41,6 +41,25 @@ class PortS11Report:
         return out
 
 
+@dataclass(frozen=True)
+class RFGateCheck:
+    name: str
+    passed: bool
+    detail: str
+
+
+@dataclass(frozen=True)
+class RFGateReport:
+    passed: bool
+    checks: tuple[RFGateCheck, ...]
+
+    def to_dict(self) -> dict:
+        return {
+            "passed": self.passed,
+            "checks": [{"name": c.name, "passed": c.passed, "detail": c.detail} for c in self.checks],
+        }
+
+
 def _maybe_load_openems(metrics_path: Path | str | None) -> OpenemsPortMetrics | None:
     if metrics_path is None:
         return None
@@ -57,8 +76,8 @@ def build_port_report(
     band_lo_hz: float | None = None,
     band_hi_hz: float | None = None,
 ) -> PortS11Report:
-    unloaded = load_s1p(unloaded_s1p)
-    loaded: S1PTrace | None = load_s1p(loaded_s1p) if loaded_s1p else None
+    unloaded = load_touchstone_s11(unloaded_s1p)
+    loaded: S1PTrace | None = load_touchstone_s11(loaded_s1p) if loaded_s1p else None
     openems = _maybe_load_openems(openems_port_metrics)
 
     unloaded_summary = summary_s11_metrics(
@@ -91,3 +110,38 @@ def build_port_report(
 
     return PortS11Report(unloaded=unloaded_summary, loaded=loaded_summary, openems=openems_summary)
 
+
+def evaluate_rf_gate(
+    report: PortS11Report,
+    *,
+    max_unloaded_s11: float = 0.92,
+    max_loaded_s11: float = 0.92,
+    max_loaded_minus_unloaded: float = 0.10,
+) -> RFGateReport:
+    """Simple Stage-A RF acceptance checks from VNA |S11| traces."""
+    checks: list[RFGateCheck] = []
+
+    u = float(report.unloaded.get("s11_mag", 1.0))
+    checks.append(RFGateCheck(
+        "unloaded_s11",
+        u <= max_unloaded_s11,
+        f"|S11|={u:.3f} (max {max_unloaded_s11})",
+    ))
+
+    if report.loaded is None:
+        checks.append(RFGateCheck("loaded_trace_present", False, "missing loaded trace"))
+    else:
+        s11 = float(report.loaded.get("s11_mag", 1.0))
+        checks.append(RFGateCheck(
+            "loaded_s11",
+            s11 <= max_loaded_s11,
+            f"|S11|={s11:.3f} (max {max_loaded_s11})",
+        ))
+        checks.append(RFGateCheck(
+            "loaded_minus_unloaded",
+            (s11 - u) <= max_loaded_minus_unloaded,
+            f"Δ|S11|={s11 - u:+.3f} (max {max_loaded_minus_unloaded})",
+        ))
+
+    passed = all(c.passed for c in checks)
+    return RFGateReport(passed=passed, checks=tuple(checks))

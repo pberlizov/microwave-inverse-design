@@ -74,6 +74,8 @@ class CavityParams:
     baffle_x_frac: float = 0.5
     baffle_len_frac: float = 0.0
     baffle_gap_frac: float = 0.5
+    # Internal metal model: ``dirichlet`` (Ez=0 rows, backlog B2) or legacy ``lossy_imag``.
+    structure_model: str = "dirichlet"
 
     # --- Ore bed (charge) geometry ---
     charge_cx_frac: float = 0.5
@@ -254,19 +256,25 @@ def _rasterize_legacy_baffle(
     return col & within & not_gap
 
 
+STRUCTURE_MODELS: tuple[str, ...] = ("dirichlet", "lossy_imag")
+
+
 def _apply_pec(
     eps_r: np.ndarray,
     mu_r: np.ndarray,
     mask: np.ndarray,
     target_mask: np.ndarray,
     gangue_mask: np.ndarray,
+    structure_model: str = "dirichlet",
 ) -> None:
     if not mask.any():
         return
-    eps_r[mask] = _PEC_EPS
-    mu_r[mask] = 1.0 + 0.0j
     target_mask &= ~mask
     gangue_mask &= ~mask
+    if structure_model == "lossy_imag":
+        eps_r[mask] = _PEC_EPS
+        mu_r[mask] = 1.0 + 0.0j
+    # dirichlet: leave background ε (air); metal enforced in FDFD via Ez=0 rows
 
 
 def build_scene(grid: Grid, params: CavityParams, materials: Materials | None = None) -> Scene:
@@ -333,7 +341,9 @@ def build_scene(grid: Grid, params: CavityParams, materials: Materials | None = 
         pec_mask |= plate
     elif params.baffle_len_frac > 1e-3:
         pec_mask |= _rasterize_legacy_baffle(XX, YY, grid, params)
-    _apply_pec(eps_r, mu_r, pec_mask, target_mask, gangue_mask)
+    _apply_pec(
+        eps_r, mu_r, pec_mask, target_mask, gangue_mask, params.structure_model,
+    )
 
     source_xy = resolve_feed(params, grid)
     source_j = build_source_jz(params, grid)
@@ -456,7 +466,26 @@ def build_scene_at_T(
         mu_r[mask] = mu_vals
 
     _fill(scene.gangue_mask, pair.gangue_model)
-    _fill(scene.target_mask, pair.target_model)
+
+    from mw_inv.dielectric_data import MINERAL_MODELS, PAIR_MINERALS
+    from mw_inv.phase_transitions import mineral_key_at_T, rules_for_pair
+
+    target_key, gangue_key = PAIR_MINERALS[pair_label]
+    phase_rules = rules_for_pair(pair_label)
+
+    if phase_rules and scene.target_mask.any():
+        temps = T_clip[scene.target_mask]
+        eps_vals = np.empty(temps.shape, dtype=complex)
+        mu_vals = np.empty(temps.shape, dtype=complex)
+        for i, t in enumerate(temps.flat):
+            mkey = mineral_key_at_T(target_key, float(t), rules=phase_rules)
+            model = MINERAL_MODELS[mkey]
+            eps_vals.flat[i] = model.eps(float(t), freq)
+            mu_vals.flat[i] = model.mu(float(t), freq)
+        eps_r[scene.target_mask] = eps_vals
+        mu_r[scene.target_mask] = mu_vals
+    else:
+        _fill(scene.target_mask, pair.target_model)
 
     return Scene(
         grid=scene.grid,

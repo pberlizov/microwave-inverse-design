@@ -165,12 +165,13 @@ def optuna_search(
     materials: Materials | None = None,
     *,
     legacy: bool = False,
+    freq_robust: bool = False,
 ) -> list[Trial]:
     import optuna
 
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     base = base or CavityParams()
-    space = get_search_space(legacy=legacy)
+    space = get_search_space(legacy=legacy, freq_robust=freq_robust)
     if legacy:
         base = replace(base, feed_wall="")
     trials: list[Trial] = []
@@ -559,6 +560,8 @@ class MultiTrial:
     arcing_risk: bool = False
     hotspot_delta_T_K: float | None = None
     hotspot_violation: bool = False
+    gangue_power_fraction: float = 0.0
+    min_particle_fraction: float = 0.0
 
 
 def _hotspot_delta_T_K(
@@ -566,19 +569,24 @@ def _hotspot_delta_T_K(
     params: CavityParams,
     materials: Materials | None,
     pair_label: str | None,
+    *,
+    evolve_properties: bool = True,
+    max_hotspot_delta_T_K: float = DEFAULT_MAX_HOTSPOT_DELTA_T_K,
 ) -> float | None:
     """Peak target-phase rise above ambient at coupled steady state (runaway proxy)."""
-    if not pair_label:
+    label = pair_label or (materials.pair_label if materials else None)
+    if not label:
         return None
     from mw_inv.thermal import ThermalConfig, coupled_steady_state, thermal_props_for_pair
 
     cfg = ThermalConfig(
         max_iters=12,
         tol_K=4.0,
-        thermal_props=thermal_props_for_pair(pair_label),
+        thermal_props=thermal_props_for_pair(label),
+        evolve_properties=evolve_properties,
     )
     coupled = coupled_steady_state(
-        grid, pair_label, config=cfg, params=params, materials=materials,
+        grid, label, config=cfg, params=params, materials=materials,
     )
     return float(coupled.thermal.T_max_target_K - cfg.T_amb_K)
 
@@ -592,6 +600,7 @@ def _evaluate_multi_trial(
     check_arcing: bool,
     check_hotspot: bool = False,
     max_hotspot_delta_T_K: float = DEFAULT_MAX_HOTSPOT_DELTA_T_K,
+    hotspot_evolved: bool = True,
 ) -> MultiTrial:
     from mw_inv.design_evaluator import DesignEvaluator, preset_config
 
@@ -601,9 +610,13 @@ def _evaluate_multi_trial(
     hotspot_dt: float | None = None
     hotspot_bad = False
     if check_hotspot:
-        hotspot_dt = _hotspot_delta_T_K(grid, params, materials, pair_label)
+        hotspot_dt = _hotspot_delta_T_K(
+            grid, params, materials, pair_label, evolve_properties=hotspot_evolved,
+        )
         if hotspot_dt is not None:
             hotspot_bad = hotspot_dt > max_hotspot_delta_T_K
+    gangue_frac = float(rep.foms.get("gangue_power_fraction", 0.0))
+    min_particle = float(rep.foms.get("min_particle_fraction", 0.0))
     return MultiTrial(
         params=rep.params,
         selectivity=rep.em_selectivity,
@@ -613,6 +626,8 @@ def _evaluate_multi_trial(
         arcing_risk=bool(rep.arcing_risk),
         hotspot_delta_T_K=hotspot_dt,
         hotspot_violation=hotspot_bad,
+        gangue_power_fraction=gangue_frac,
+        min_particle_fraction=min_particle,
     )
 
 
@@ -624,20 +639,28 @@ def optuna_multi_search(
     materials: Materials | None = None,
     *,
     legacy: bool = False,
+    freq_robust: bool = False,
+    industrial_objectives: bool = False,
     check_arcing: bool = False,
     check_hotspot: bool = False,
     max_hotspot_delta_T_K: float = DEFAULT_MAX_HOTSPOT_DELTA_T_K,
+    hotspot_evolved: bool = True,
 ) -> tuple[list[MultiTrial], "optuna.Study"]:
     import optuna
 
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     base = base or CavityParams()
-    space = get_search_space(legacy=legacy)
+    space = get_search_space(legacy=legacy, freq_robust=freq_robust)
     if legacy:
         base = replace(base, feed_wall="")
     trials: list[MultiTrial] = []
 
-    def objective(trial: "optuna.Trial") -> tuple[float, float]:
+    if industrial_objectives:
+        directions = ["maximize", "maximize", "maximize", "maximize"]
+    else:
+        directions = ["maximize", "maximize"]
+
+    def objective(trial: "optuna.Trial") -> tuple[float, ...]:
         vec = _suggest_vec(trial, space)
         mt = _evaluate_multi_trial(
             grid,
@@ -647,6 +670,7 @@ def optuna_multi_search(
             check_arcing=check_arcing,
             check_hotspot=check_hotspot,
             max_hotspot_delta_T_K=max_hotspot_delta_T_K,
+            hotspot_evolved=hotspot_evolved,
         )
         trial.set_user_attr("contrast", mt.contrast)
         trial.set_user_attr("p_total", mt.p_total)
@@ -654,13 +678,22 @@ def optuna_multi_search(
         if mt.hotspot_delta_T_K is not None:
             trial.set_user_attr("hotspot_delta_T_K", mt.hotspot_delta_T_K)
         trial.set_user_attr("hotspot_violation", mt.hotspot_violation)
+        trial.set_user_attr("gangue_power_fraction", mt.gangue_power_fraction)
+        trial.set_user_attr("min_particle_fraction", mt.min_particle_fraction)
         trials.append(mt)
         unsafe = (check_arcing and mt.arcing_risk) or (check_hotspot and mt.hotspot_violation)
         coupling = mt.coupling_eff if not unsafe else 0.0
+        if industrial_objectives:
+            return (
+                mt.selectivity,
+                coupling,
+                1.0 - mt.gangue_power_fraction,
+                mt.min_particle_fraction,
+            )
         return mt.selectivity, coupling
 
     study = optuna.create_study(
-        directions=["maximize", "maximize"],
+        directions=directions,
         sampler=optuna.samplers.TPESampler(seed=seed),
     )
     study.optimize(objective, n_trials=n_trials)
@@ -689,6 +722,8 @@ def pareto_recommend(
     *,
     weight_selectivity: float = 0.6,
     weight_coupling: float = 0.4,
+    weight_gangue_budget: float = 0.0,
+    weight_particle_floor: float = 0.0,
     exclude_arcing: bool = True,
     exclude_hotspot: bool = True,
 ) -> MultiTrial:
@@ -702,10 +737,22 @@ def pareto_recommend(
         cool = [t for t in front if not t.hotspot_violation]
         if cool:
             front = cool
-    total_w = weight_selectivity + weight_coupling
+    total_w = weight_selectivity + weight_coupling + weight_gangue_budget + weight_particle_floor
+    if total_w <= 0:
+        total_w = 1.0
     ws = weight_selectivity / total_w
     wc = weight_coupling / total_w
-    return max(front, key=lambda t: ws * t.selectivity + wc * t.coupling_eff)
+    wg = weight_gangue_budget / total_w
+    wp = weight_particle_floor / total_w
+    return max(
+        front,
+        key=lambda t: (
+            ws * t.selectivity
+            + wc * t.coupling_eff
+            + wg * (1.0 - t.gangue_power_fraction)
+            + wp * t.min_particle_fraction
+        ),
+    )
 
 
 def multi_trial_to_dict(trial: MultiTrial) -> dict:
@@ -720,6 +767,8 @@ def multi_trial_to_dict(trial: MultiTrial) -> dict:
     if trial.hotspot_delta_T_K is not None:
         out["hotspot_delta_T_K"] = trial.hotspot_delta_T_K
         out["hotspot_violation"] = trial.hotspot_violation
+    out["gangue_power_fraction"] = trial.gangue_power_fraction
+    out["min_particle_fraction"] = trial.min_particle_fraction
     return out
 
 

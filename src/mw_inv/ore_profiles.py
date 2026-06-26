@@ -310,7 +310,6 @@ def layout_params_with_psd(
     cavity_span_m: float = 0.36,
 ) -> CavityParams:
     """Random PSD-sized grain layout inside the charge bed."""
-    from dataclasses import replace
     from mw_inv.geometry import params_with_layout, sample_inclusion_layout
 
     if ore.texture is None or ore.texture.psd is None:

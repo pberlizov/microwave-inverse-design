@@ -83,11 +83,14 @@ def _build_operator(
     eps_r: np.ndarray,
     k0: float,
     mu_r: np.ndarray | None = None,
+    dirichlet_mask: np.ndarray | None = None,
 ) -> sp.csr_matrix:
     """Assemble the sparse Helmholtz operator A with PEC (Dirichlet) walls.
 
     TM wave equation: div(1/mu grad Ez) + k0^2 eps Ez = source.  When ``mu_r``
     is omitted, mu = 1 everywhere (legacy scalar-permittivity mode).
+
+    Optional *dirichlet_mask* enforces Ez=0 on internal metal (true PEC, backlog B2).
     """
     nx, ny = grid.nx, grid.ny
     dx2 = grid.dx ** 2
@@ -95,6 +98,13 @@ def _build_operator(
     n = nx * ny
     if mu_r is None:
         mu_r = np.ones_like(eps_r, dtype=complex)
+    dmask = (
+        dirichlet_mask
+        if dirichlet_mask is not None
+        else np.zeros((ny, nx), dtype=bool)
+    )
+    if dmask.shape != (ny, nx):
+        raise ValueError(f"dirichlet_mask shape {dmask.shape} != ({ny}, {nx})")
 
     rows: list[int] = []
     cols: list[int] = []
@@ -108,7 +118,7 @@ def _build_operator(
     for iy in range(ny):
         for ix in range(nx):
             p = grid.index(ix, iy)
-            if ix == 0 or ix == nx - 1 or iy == 0 or iy == ny - 1:
+            if ix == 0 or ix == nx - 1 or iy == 0 or iy == ny - 1 or dmask[iy, ix]:
                 add(p, p, 1.0)
                 continue
             inv_mu = 1.0 / mu_r[iy, ix]
@@ -129,6 +139,7 @@ def solve(
     source_amp: float = 1.0,
     source_j: np.ndarray | None = None,
     mu_r: np.ndarray | None = None,
+    dirichlet_mask: np.ndarray | None = None,
 ) -> SolveResult:
     """Solve for E_z given permittivity maps, frequency, and a current source.
 
@@ -148,15 +159,22 @@ def solve(
 
     omega = 2.0 * np.pi * freq_hz
     k0 = omega / C0
-    A = _build_operator(grid, eps_r, k0, mu_r)
+    A = _build_operator(grid, eps_r, k0, mu_r, dirichlet_mask)
 
     b = np.zeros(grid.nx * grid.ny, dtype=complex)
     cell_area = grid.dx * grid.dy
+    dmask = (
+        dirichlet_mask
+        if dirichlet_mask is not None
+        else np.zeros((grid.ny, grid.nx), dtype=bool)
+    )
 
     if source_j is not None:
         j = np.asarray(source_j, dtype=complex) * source_amp
         for iy in range(1, grid.ny - 1):
             for ix in range(1, grid.nx - 1):
+                if dmask[iy, ix]:
+                    continue
                 if j[iy, ix] != 0:
                     b[grid.index(ix, iy)] = -1j * omega * MU0 * j[iy, ix] * cell_area
     else:
@@ -165,11 +183,24 @@ def solve(
         six, siy = grid.nearest_node(sx, sy)
         six = min(max(six, 1), grid.nx - 2)
         siy = min(max(siy, 1), grid.ny - 2)
-        b[grid.index(six, siy)] = -1j * omega * MU0 * source_amp / cell_area
+        if not dmask[siy, six]:
+            b[grid.index(six, siy)] = -1j * omega * MU0 * source_amp / cell_area
 
     Ez_flat = spla.spsolve(A, b)
     Ez = Ez_flat.reshape(grid.ny, grid.nx)
     return SolveResult(Ez=Ez, freq_hz=freq_hz, eps_r=eps_r, grid=grid, mu_r=mu_r)
+
+
+def _scene_dirichlet_mask(scene) -> np.ndarray | None:
+    """Internal metal as Ez=0 when structure_model is dirichlet (default)."""
+    pec = getattr(scene, "pec_mask", None)
+    if pec is None or not np.any(pec):
+        return None
+    params = getattr(scene, "params", None)
+    model = getattr(params, "structure_model", "dirichlet") if params else "dirichlet"
+    if model != "dirichlet":
+        return None
+    return np.asarray(pec, dtype=bool)
 
 
 def solve_scene(
@@ -179,6 +210,7 @@ def solve_scene(
     source_amp: float = 1.0,
 ) -> SolveResult:
     """Solve using distributed ``scene.source_j`` when present, else point ``source_xy``."""
+    dmask = _scene_dirichlet_mask(scene)
     source_j = getattr(scene, "source_j", None)
     if source_j is not None and np.any(source_j):
         return solve(
@@ -188,6 +220,7 @@ def solve_scene(
             source_j=source_j,
             source_amp=source_amp,
             mu_r=scene.mu_r,
+            dirichlet_mask=dmask,
         )
     return solve(
         grid,
@@ -196,6 +229,7 @@ def solve_scene(
         source_xy=scene.source_xy,
         source_amp=source_amp,
         mu_r=scene.mu_r,
+        dirichlet_mask=dmask,
     )
 
 

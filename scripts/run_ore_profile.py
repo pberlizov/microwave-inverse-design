@@ -16,14 +16,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from mw_inv.design_evaluator import DesignEvaluator  # noqa: E402
 from mw_inv.fdfd import Grid  # noqa: E402
 from mw_inv.geometry import CavityParams  # noqa: E402
-from mw_inv.ore_profiles import ORE_PROFILES, charge_volume_m3, load_ore_profile, materials_from_ore, ore_summary  # noqa: E402
+from mw_inv.ore_profiles import ORE_PROFILES, cavity_params_from_ore, charge_volume_m3, load_ore_profile, materials_from_ore, ore_summary  # noqa: E402
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("ore", nargs="?", default=None, choices=sorted(ORE_PROFILES))
     ap.add_argument("--json", type=str, default=None, help="ore profile JSON path (overrides positional ore)")
-    ap.add_argument("--all", action="store_true")
+    ap.add_argument("--all", action="store_true", help="built-in ORE_PROFILES only")
+    ap.add_argument(
+        "--all-files",
+        action="store_true",
+        help="evaluate every data/ores/*.json (recommended for real deposit coverage)",
+    )
     ap.add_argument("--out", default="data/ore_profile_report.json")
     args = ap.parse_args()
 
@@ -31,26 +36,43 @@ def main() -> None:
         ore = load_ore_profile(args.json)
         labels = [ore.label]
         ore_sources = {ore.label: ore}
+        ore_paths = {ore.label: Path(args.json)}
+    elif args.all_files:
+        ores_dir = Path(__file__).resolve().parents[1] / "data" / "ores"
+        paths = sorted(p for p in ores_dir.rglob("*.json") if not p.name.startswith("_"))
+        ore_sources = {}
+        ore_paths = {}
+        for p in paths:
+            ore = load_ore_profile(p)
+            ore_sources[ore.label] = ore
+            ore_paths[ore.label] = p
+        labels = sorted(ore_sources)
     else:
         labels = sorted(ORE_PROFILES) if args.all or args.ore is None else [args.ore]
         ore_sources = {k: ORE_PROFILES[k] for k in labels}
+        ore_paths = {k: None for k in labels}
 
     grid = Grid(nx=61, ny=61, Lx=0.36, Ly=0.36)
     rows = []
     for label in labels:
         ore = ore_sources[label]
-        summary = ore_summary(ore)
-        mats = materials_from_ore(ore)
+        ore_path = ore_paths.get(label)
+        summary = ore_summary(ore, ore_profile_path=ore_path) if ore_path else ore_summary(ore)
+        kw = {"ore_profile_path": ore_path} if ore_path else {}
+        mats = materials_from_ore(ore, **kw)
+        params = cavity_params_from_ore(ore, cavity_span_m=grid.Lx) if ore_path else CavityParams()
         ev = DesignEvaluator.from_preset(
             grid,
             "em",
             materials=mats,
             check_arcing=True,
         )
-        rep = ev.evaluate(CavityParams())
-        vol = charge_volume_m3(CavityParams())
+        rep = ev.evaluate(params)
+        vol = charge_volume_m3(params)
         rows.append({
             "ore": label,
+            "json_path": str(ore_path) if ore_path else None,
+            "materials_mode": summary.get("materials_mode"),
             "suggested_pair": summary["suggested_pair"],
             "inferred_gangue": summary["inferred_gangue"],
             "dominant_hmap": summary["dominant_hmap"],

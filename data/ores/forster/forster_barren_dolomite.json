@@ -1,0 +1,21 @@
+{
+  "label": "forster_barren_dolomite",
+  "source": "forster_phd_2023",
+  "heating_class": "I_poor",
+  "hmap_wt_percent": 0.5,
+  "fractions": {
+    "dolomite": 0.7,
+    "quartz": 0.28
+  },
+  "gangue_mineral": "dolomite",
+  "texture": {
+    "class": "disseminated",
+    "mean_grain_radius_m": 0.002
+  },
+  "measured_dielectrics": {
+    "path": "../../measured_dielectrics/forster_hmap_minerals_v1.json",
+    "target_phase": "dolomite",
+    "gangue_phase": "quartz",
+    "default_moisture_wt_percent": 0.0
+  }
+}

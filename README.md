@@ -231,6 +231,8 @@ python3 scripts/ingest_vna_s11.py --unloaded data/vna/unloaded.s1p --loaded data
 python3 scripts/run_design_eval.py --preset composite:liberation  # unified FOM report
 python3 scripts/run_materials_catalog.py --pairs          # HMAP + gangue ε catalog
 python3 scripts/run_benchmarks.py                                    # literature benchmark suite
+python3 scripts/run_real_data_eval.py --quick                        # all versioned real data (ores, deposit ε, bench)
+python3 scripts/run_real_data_eval.py                                # full grid + material-robust on measured ores
 python3 scripts/run_validation.py              # forward-model validation suite -> data/validation_report.json
 python3 -m pytest tests/ -q                         # sanity checks
 ```

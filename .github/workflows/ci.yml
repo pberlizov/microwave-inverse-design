@@ -21,6 +21,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      - name: Prepare literature datasets
+        run: python scripts/prepare_test_data.py
+
       - name: Unit tests
         run: python -m pytest -q
 
@@ -41,3 +44,6 @@ jobs:
             --lab-measurements data/lab_measurements.example.json \
             --grid 31 --trials 4 \
             --out /tmp/bench_calibration_ci.json
+
+      - name: Real-data batch evaluation (quick)
+        run: python scripts/run_real_data_eval.py --quick --out /tmp/real_data_eval_ci.json

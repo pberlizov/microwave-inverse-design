@@ -21,9 +21,16 @@ class GateThresholds:
     openems_rel_err_max: float = 0.35
     openems_s11_max: float = 0.92
     openems_coupling_floor: float = 0.08
+    # FDFD structural-loss sanity checks (prevents "selectivity by dumping power into structure").
+    fdfd_coupling_floor: float = 0.10
+    fdfd_pec_loss_fraction_max: float = 0.60
+    # openEMS matched-port coupling vs FDFD energy-consistent coupling (metal model alignment, B0/B2).
+    openems_fdfd_coupling_ratio_min: float = 0.35
+    openems_fdfd_coupling_ratio_max: float = 2.50
     require_rank_match: bool = True
     require_fdfd_improvement: bool = True
     min_fdfd_improvement: float = 0.01  # optimised − untuned selectivity
+    require_openems_for_gate: bool = False
 
 
 @dataclass
@@ -104,6 +111,56 @@ def evaluate_gate(
             f"Δsel={delta:.4f} (tpe={tpe.fdfd_selectivity:.4f}, untuned={untuned.fdfd_selectivity:.4f})",
         ))
 
+    # Structural-loss sanity on FDFD (uses coupling_eff / pec_loss_fraction when available).
+    coup_vals = [
+        r.fdfd_coupling_eff for r in rows
+        if getattr(r, "fdfd_coupling_eff", None) is not None
+    ]
+    if coup_vals:
+        worst_c = min(float(x) for x in coup_vals if x is not None)
+        ok_c = worst_c >= th.fdfd_coupling_floor
+        checks.append(GateCheck(
+            "fdfd_coupling_floor",
+            ok_c,
+            f"min coupling_eff={worst_c:.3f} (floor {th.fdfd_coupling_floor})",
+        ))
+
+    pec_vals = [
+        r.fdfd_pec_loss_fraction for r in rows
+        if getattr(r, "fdfd_pec_loss_fraction", None) is not None
+    ]
+    if pec_vals:
+        worst_pec = max(float(x) for x in pec_vals if x is not None)
+        ok_pec = worst_pec <= th.fdfd_pec_loss_fraction_max
+        checks.append(GateCheck(
+            "fdfd_pec_loss_fraction",
+            ok_pec,
+            f"max pec_loss_fraction={worst_pec:.3f} (limit {th.fdfd_pec_loss_fraction_max})",
+        ))
+
+    # FDFD Dirichlet metal vs openEMS AddMetal: coupling should stay same order of magnitude.
+    ratio_rows = [
+        r for r in rows
+        if r.openems_coupling_eff is not None and r.fdfd_coupling_eff is not None
+    ]
+    if ratio_rows:
+        ratios = [
+            float(r.openems_coupling_eff) / max(float(r.fdfd_coupling_eff), 1e-6)
+            for r in ratio_rows
+        ]
+        worst_lo = min(ratios)
+        worst_hi = max(ratios)
+        ok_ratio = (
+            worst_lo >= th.openems_fdfd_coupling_ratio_min
+            and worst_hi <= th.openems_fdfd_coupling_ratio_max
+        )
+        checks.append(GateCheck(
+            "openems_fdfd_coupling_ratio",
+            ok_ratio,
+            f"coupling ratio range [{worst_lo:.3f}, {worst_hi:.3f}] "
+            f"(allowed [{th.openems_fdfd_coupling_ratio_min}, {th.openems_fdfd_coupling_ratio_max}])",
+        ))
+
     best = max((tpe, rnd), key=lambda r: r.fdfd_selectivity if r else 0.0)
     if best and best.label != "tpe_best":
         checks.append(GateCheck(
@@ -132,6 +189,8 @@ def evaluate_gate(
         ))
 
     port_rows = _openems_port_rows(rows)
+    if th.require_openems_for_gate and not port_rows:
+        checks.append(GateCheck("openems_required", False, "openEMS port metrics missing"))
     if port_rows:
         s11_vals = [r.openems_s11_mag for r in port_rows if r.openems_s11_mag is not None]
         if s11_vals:

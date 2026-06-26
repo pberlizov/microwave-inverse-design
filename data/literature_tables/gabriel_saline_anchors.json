@@ -1,0 +1,16 @@
+{
+  "source": "Gabriel 1996 / phantom_data saline gel anchors @ 2.45 GHz",
+  "citation": "https://niremf.ifac.cnr.it/tissprop/",
+  "salt_wt_percent_anchors": [
+    {"wt_percent": 0.0, "eps_real": 4.5, "eps_imag": 0.06},
+    {"wt_percent": 0.5, "eps_real": 7.0, "eps_imag": 0.35},
+    {"wt_percent": 1.0, "eps_real": 10.5, "eps_imag": 1.2},
+    {"wt_percent": 2.0, "eps_real": 16.0, "eps_imag": 3.5},
+    {"wt_percent": 3.0, "eps_real": 22.0, "eps_imag": 7.0}
+  ],
+  "phantom_pairs": [
+    {"label": "saline_3_vs_0", "target_wt_percent": 3.0, "gangue_wt_percent": 0.0},
+    {"label": "saline_2_vs_0.5", "target_wt_percent": 2.0, "gangue_wt_percent": 0.5},
+    {"label": "saline_1_vs_0", "target_wt_percent": 1.0, "gangue_wt_percent": 0.0}
+  ]
+}

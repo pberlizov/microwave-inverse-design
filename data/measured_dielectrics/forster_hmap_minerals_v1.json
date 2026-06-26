@@ -1,0 +1,1032 @@
+{
+  "dataset_id": "forster_hmap_minerals_v1",
+  "version": "forster-phd-ch4",
+  "description": "Forster HMAP sulphides + USBM/literature gangue phases for 42-ore manifest.",
+  "phases": [
+    {
+      "label": "pyrite",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 8.0,
+          "eps_imag": 0.25,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrite"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 8.2,
+          "eps_imag": 0.32,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrite"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 8.5,
+          "eps_imag": 0.42,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrite"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 8.9,
+          "eps_imag": 0.55,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrite"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 9.2,
+          "eps_imag": 0.65,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrite"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 9.8,
+          "eps_imag": 0.85,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrite"
+        },
+        {
+          "temp_K": 873.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 10.0,
+          "eps_imag": 0.9,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrite"
+        },
+        {
+          "temp_K": 873.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 10.8,
+          "eps_imag": 1.15,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrite"
+        }
+      ]
+    },
+    {
+      "label": "chalcopyrite",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 10.0,
+          "eps_imag": 0.4,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "chalcopyrite"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 10.3,
+          "eps_imag": 0.48,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "chalcopyrite"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 10.5,
+          "eps_imag": 0.58,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "chalcopyrite"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 11.0,
+          "eps_imag": 0.72,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "chalcopyrite"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 11.2,
+          "eps_imag": 0.8,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "chalcopyrite"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 12.0,
+          "eps_imag": 1.05,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "chalcopyrite"
+        },
+        {
+          "temp_K": 873.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 12.0,
+          "eps_imag": 1.05,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "chalcopyrite"
+        },
+        {
+          "temp_K": 873.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 13.0,
+          "eps_imag": 1.35,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "chalcopyrite"
+        }
+      ]
+    },
+    {
+      "label": "pyrrhotite",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 10.8,
+          "eps_imag": 0.55,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrrhotite"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 11.2,
+          "eps_imag": 0.68,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrrhotite"
+        },
+        {
+          "temp_K": 423.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 11.5,
+          "eps_imag": 0.75,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrrhotite"
+        },
+        {
+          "temp_K": 423.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 12.0,
+          "eps_imag": 0.95,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrrhotite"
+        },
+        {
+          "temp_K": 573.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 12.5,
+          "eps_imag": 1.05,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrrhotite"
+        },
+        {
+          "temp_K": 573.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 13.2,
+          "eps_imag": 1.35,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrrhotite"
+        },
+        {
+          "temp_K": 723.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 13.0,
+          "eps_imag": 1.2,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrrhotite"
+        },
+        {
+          "temp_K": 723.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 13.8,
+          "eps_imag": 1.55,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pyrrhotite"
+        }
+      ]
+    },
+    {
+      "label": "magnetite",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 11.8,
+          "eps_imag": 0.9,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "magnetite"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 12.2,
+          "eps_imag": 1.05,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "magnetite"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 12.5,
+          "eps_imag": 1.25,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "magnetite"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 13.0,
+          "eps_imag": 1.55,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "magnetite"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 13.5,
+          "eps_imag": 2.0,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "magnetite"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 14.5,
+          "eps_imag": 2.8,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "magnetite"
+        },
+        {
+          "temp_K": 873.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 14.0,
+          "eps_imag": 2.5,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "magnetite"
+        },
+        {
+          "temp_K": 873.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 15.0,
+          "eps_imag": 3.2,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "magnetite"
+        }
+      ]
+    },
+    {
+      "label": "bornite",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 10.3,
+          "eps_imag": 0.48,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "bornite"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 10.6,
+          "eps_imag": 0.58,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "bornite"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 10.8,
+          "eps_imag": 0.68,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "bornite"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 11.2,
+          "eps_imag": 0.82,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "bornite"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 11.5,
+          "eps_imag": 0.88,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "bornite"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 12.0,
+          "eps_imag": 1.05,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "bornite"
+        }
+      ]
+    },
+    {
+      "label": "galena",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 9.4,
+          "eps_imag": 0.3,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "galena"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 9.6,
+          "eps_imag": 0.36,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "galena"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 9.6,
+          "eps_imag": 0.34,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "galena"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 9.8,
+          "eps_imag": 0.4,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "galena"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 9.8,
+          "eps_imag": 0.4,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "galena"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 10.2,
+          "eps_imag": 0.48,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "galena"
+        }
+      ]
+    },
+    {
+      "label": "molybdenite",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 7.4,
+          "eps_imag": 0.85,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "molybdenite"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 7.6,
+          "eps_imag": 1.05,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "molybdenite"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 7.8,
+          "eps_imag": 1.15,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "molybdenite"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 8.1,
+          "eps_imag": 1.4,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "molybdenite"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 8.2,
+          "eps_imag": 1.45,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "molybdenite"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 8.6,
+          "eps_imag": 1.75,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "molybdenite"
+        }
+      ]
+    },
+    {
+      "label": "pentlandite",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 9.8,
+          "eps_imag": 0.42,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pentlandite"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 10.1,
+          "eps_imag": 0.52,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pentlandite"
+        },
+        {
+          "temp_K": 423.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 10.2,
+          "eps_imag": 0.72,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pentlandite"
+        },
+        {
+          "temp_K": 423.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 10.6,
+          "eps_imag": 0.9,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pentlandite"
+        },
+        {
+          "temp_K": 573.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 10.5,
+          "eps_imag": 1.0,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pentlandite"
+        },
+        {
+          "temp_K": 573.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 11.0,
+          "eps_imag": 1.25,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "pentlandite"
+        }
+      ]
+    },
+    {
+      "label": "hematite",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 10.8,
+          "eps_imag": 0.35,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "hematite"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 11.2,
+          "eps_imag": 0.42,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "hematite"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 11.5,
+          "eps_imag": 0.55,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "hematite"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 12.0,
+          "eps_imag": 0.68,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "hematite"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 912000000.0,
+          "eps_real": 12.5,
+          "eps_imag": 0.78,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "hematite"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 13.2,
+          "eps_imag": 0.95,
+          "moisture_wt_percent": 0.0,
+          "source": "Forster PhD 2023 Ch. 4\u20135; Goldbaum et al. cavity perturbation @ 912\u20132466 MHz",
+          "notes": "hematite"
+        }
+      ]
+    },
+    {
+      "label": "quartz",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 300000000.0,
+          "eps_real": 4.0,
+          "eps_imag": 0.000752,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz dry powder @ 300 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 400000000.0,
+          "eps_real": 3.96,
+          "eps_imag": 0.000594,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz dry powder @ 400 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 500000000.0,
+          "eps_real": 3.89,
+          "eps_imag": 0.0008558000000000002,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz dry powder @ 500 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 600000000.0,
+          "eps_real": 3.85,
+          "eps_imag": 0.0007007000000000001,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz dry powder @ 600 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 700000000.0,
+          "eps_real": 3.9,
+          "eps_imag": 0.0006006,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz dry powder @ 700 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 900000000.0,
+          "eps_real": 3.94,
+          "eps_imag": 0.0006304,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz dry powder @ 900 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 1000000000.0,
+          "eps_real": 3.89,
+          "eps_imag": 0.0005329300000000001,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz dry powder @ 1000 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 3.94,
+          "eps_imag": 0.0006304,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz 2.45 GHz carry-over from 900 MHz"
+        }
+      ]
+    },
+    {
+      "label": "calcite",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 300000000.0,
+          "eps_real": 9.16,
+          "eps_imag": 0.0007053200000000001,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite dry powder @ 300 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 400000000.0,
+          "eps_real": 8.89,
+          "eps_imag": 0.0007734300000000001,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite dry powder @ 400 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 500000000.0,
+          "eps_real": 9.1,
+          "eps_imag": 0.0006097,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite dry powder @ 500 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 600000000.0,
+          "eps_real": 8.86,
+          "eps_imag": 0.00054932,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite dry powder @ 600 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 700000000.0,
+          "eps_real": 9.02,
+          "eps_imag": 0.00029766,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite dry powder @ 700 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 800000000.0,
+          "eps_real": 8.66,
+          "eps_imag": 0.0002944400000000001,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite dry powder @ 800 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 1000000000.0,
+          "eps_real": 8.91,
+          "eps_imag": 0.00041877,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite dry powder @ 1000 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 8.91,
+          "eps_imag": 0.00041877,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite 2.45 GHz carry-over from 1000 MHz"
+        }
+      ]
+    },
+    {
+      "label": "dolomite",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 300000000.0,
+          "eps_real": 7.62,
+          "eps_imag": 0.0019812000000000002,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 300 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 400000000.0,
+          "eps_real": 7.38,
+          "eps_imag": 0.0021992400000000003,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 400 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 500000000.0,
+          "eps_real": 7.32,
+          "eps_imag": 0.00183732,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 500 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 600000000.0,
+          "eps_real": 7.37,
+          "eps_imag": 0.0024984300000000003,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 600 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 700000000.0,
+          "eps_real": 7.34,
+          "eps_imag": 0.00318556,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 700 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 800000000.0,
+          "eps_real": 7.22,
+          "eps_imag": 0.0018988599999999998,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 800 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 900000000.0,
+          "eps_real": 7.26,
+          "eps_imag": 0.00225786,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 900 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 1000000000.0,
+          "eps_real": 7.41,
+          "eps_imag": 0.00179322,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 1000 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 7.26,
+          "eps_imag": 0.00225786,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite 2.45 GHz carry-over from 900 MHz"
+        }
+      ]
+    },
+    {
+      "label": "orthoclase",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 300000000.0,
+          "eps_real": 4.56,
+          "eps_imag": 0.00029184,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "orthoclase dry powder @ 300 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 400000000.0,
+          "eps_real": 4.54,
+          "eps_imag": 0.00021338,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "orthoclase dry powder @ 400 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 600000000.0,
+          "eps_real": 4.37,
+          "eps_imag": 0.00027968000000000003,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "orthoclase dry powder @ 600 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 700000000.0,
+          "eps_real": 4.4,
+          "eps_imag": 0.0002772,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "orthoclase dry powder @ 700 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 1000000000.0,
+          "eps_real": 4.34,
+          "eps_imag": 0.00018662,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "orthoclase dry powder @ 1000 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.34,
+          "eps_imag": 0.00018662,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "orthoclase 2.45 GHz carry-over from 1000 MHz"
+        }
+      ]
+    },
+    {
+      "label": "sphalerite",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 915000000.0,
+          "eps_real": 8.8,
+          "eps_imag": 0.05,
+          "moisture_wt_percent": 0.0,
+          "source": "USBM CDC 10047 open-ended coax; natural-density extrapolation @ 915 & 2450 MHz",
+          "notes": "sphalerite natural density"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 9.0,
+          "eps_imag": 0.08,
+          "moisture_wt_percent": 0.0,
+          "source": "USBM CDC 10047 open-ended coax; natural-density extrapolation @ 915 & 2450 MHz",
+          "notes": "sphalerite natural density"
+        },
+        {
+          "temp_K": 373.15,
+          "freq_hz": 915000000.0,
+          "eps_real": 8.8,
+          "eps_imag": 0.05,
+          "moisture_wt_percent": 0.0,
+          "source": "USBM CDC 10047 open-ended coax; natural-density extrapolation @ 915 & 2450 MHz",
+          "notes": "sphalerite natural density"
+        },
+        {
+          "temp_K": 373.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 9.0,
+          "eps_imag": 0.08,
+          "moisture_wt_percent": 0.0,
+          "source": "USBM CDC 10047 open-ended coax; natural-density extrapolation @ 915 & 2450 MHz",
+          "notes": "sphalerite natural density"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 915000000.0,
+          "eps_real": 8.9,
+          "eps_imag": 0.06,
+          "moisture_wt_percent": 0.0,
+          "source": "USBM CDC 10047 open-ended coax; natural-density extrapolation @ 915 & 2450 MHz",
+          "notes": "sphalerite natural density"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 9.1,
+          "eps_imag": 0.09,
+          "moisture_wt_percent": 0.0,
+          "source": "USBM CDC 10047 open-ended coax; natural-density extrapolation @ 915 & 2450 MHz",
+          "notes": "sphalerite natural density"
+        },
+        {
+          "temp_K": 573.15,
+          "freq_hz": 915000000.0,
+          "eps_real": 9.0,
+          "eps_imag": 0.06,
+          "moisture_wt_percent": 0.0,
+          "source": "USBM CDC 10047 open-ended coax; natural-density extrapolation @ 915 & 2450 MHz",
+          "notes": "sphalerite natural density"
+        },
+        {
+          "temp_K": 573.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 9.2,
+          "eps_imag": 0.1,
+          "moisture_wt_percent": 0.0,
+          "source": "USBM CDC 10047 open-ended coax; natural-density extrapolation @ 915 & 2450 MHz",
+          "notes": "sphalerite natural density"
+        }
+      ]
+    },
+    {
+      "label": "feldspar",
+      "points": [
+        {
+          "temp_K": 298.0,
+          "freq_hz": 2450000000.0,
+          "eps_real": 6.0,
+          "eps_imag": 0.09,
+          "moisture_wt_percent": 0.0,
+          "source": "MDPI 2022 Table 1 labradorite 6.01-j0.09 @ 2.45 GHz",
+          "notes": "plagioclase feldspar"
+        },
+        {
+          "temp_K": 1273.0,
+          "freq_hz": 2450000000.0,
+          "eps_real": 6.0,
+          "eps_imag": 0.1,
+          "moisture_wt_percent": 0.0,
+          "source": "inactive silicate gangue",
+          "notes": "plagioclase feldspar"
+        }
+      ]
+    },
+    {
+      "label": "serpentine",
+      "points": [
+        {
+          "temp_K": 298.0,
+          "freq_hz": 2450000000.0,
+          "eps_real": 5.2,
+          "eps_imag": 0.02,
+          "moisture_wt_percent": 0.0,
+          "source": "Goldbaum Ch. 4 ultramafic silicate \u2014 low loss @ 912 MHz",
+          "notes": "serpentine (lizardite)"
+        },
+        {
+          "temp_K": 773.0,
+          "freq_hz": 2450000000.0,
+          "eps_real": 5.5,
+          "eps_imag": 0.08,
+          "moisture_wt_percent": 0.0,
+          "source": "dehydroxylation onset \u2014 weak rise toward olivine",
+          "notes": "serpentine (lizardite)"
+        }
+      ]
+    }
+  ]
+}

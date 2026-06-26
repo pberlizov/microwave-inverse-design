@@ -1,0 +1,22 @@
+{
+  "label": "forster_good_magnetite_skarn",
+  "source": "forster_phd_2023",
+  "heating_class": "III_good",
+  "hmap_wt_percent": 18.0,
+  "fractions": {
+    "calcite": 0.3,
+    "magnetite": 0.12,
+    "pyrite": 0.06
+  },
+  "gangue_mineral": "calcite",
+  "texture": {
+    "class": "disseminated",
+    "mean_grain_radius_m": 0.002
+  },
+  "measured_dielectrics": {
+    "path": "../../measured_dielectrics/forster_hmap_minerals_v1.json",
+    "target_phase": "magnetite",
+    "gangue_phase": "calcite",
+    "default_moisture_wt_percent": 0.0
+  }
+}

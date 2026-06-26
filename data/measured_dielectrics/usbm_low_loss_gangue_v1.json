@@ -1,0 +1,306 @@
+{
+  "dataset_id": "usbm_low_loss_gangue_v1",
+  "version": "1986-ri9035",
+  "description": "Low-loss gangue minerals 300\u20131000 MHz + 2.45 GHz carry-over (USBM RI 9035).",
+  "phases": [
+    {
+      "label": "quartz",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 300000000.0,
+          "eps_real": 4.0,
+          "eps_imag": 0.000752,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz dry powder @ 300 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 400000000.0,
+          "eps_real": 3.96,
+          "eps_imag": 0.000594,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz dry powder @ 400 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 500000000.0,
+          "eps_real": 3.89,
+          "eps_imag": 0.0008558000000000002,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz dry powder @ 500 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 600000000.0,
+          "eps_real": 3.85,
+          "eps_imag": 0.0007007000000000001,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz dry powder @ 600 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 700000000.0,
+          "eps_real": 3.9,
+          "eps_imag": 0.0006006,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz dry powder @ 700 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 900000000.0,
+          "eps_real": 3.94,
+          "eps_imag": 0.0006304,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz dry powder @ 900 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 1000000000.0,
+          "eps_real": 3.89,
+          "eps_imag": 0.0005329300000000001,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz dry powder @ 1000 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 3.94,
+          "eps_imag": 0.0006304,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "quartz 2.45 GHz carry-over from 900 MHz"
+        }
+      ]
+    },
+    {
+      "label": "calcite",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 300000000.0,
+          "eps_real": 9.16,
+          "eps_imag": 0.0007053200000000001,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite dry powder @ 300 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 400000000.0,
+          "eps_real": 8.89,
+          "eps_imag": 0.0007734300000000001,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite dry powder @ 400 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 500000000.0,
+          "eps_real": 9.1,
+          "eps_imag": 0.0006097,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite dry powder @ 500 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 600000000.0,
+          "eps_real": 8.86,
+          "eps_imag": 0.00054932,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite dry powder @ 600 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 700000000.0,
+          "eps_real": 9.02,
+          "eps_imag": 0.00029766,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite dry powder @ 700 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 800000000.0,
+          "eps_real": 8.66,
+          "eps_imag": 0.0002944400000000001,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite dry powder @ 800 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 1000000000.0,
+          "eps_real": 8.91,
+          "eps_imag": 0.00041877,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite dry powder @ 1000 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 8.91,
+          "eps_imag": 0.00041877,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "calcite 2.45 GHz carry-over from 1000 MHz"
+        }
+      ]
+    },
+    {
+      "label": "dolomite",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 300000000.0,
+          "eps_real": 7.62,
+          "eps_imag": 0.0019812000000000002,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 300 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 400000000.0,
+          "eps_real": 7.38,
+          "eps_imag": 0.0021992400000000003,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 400 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 500000000.0,
+          "eps_real": 7.32,
+          "eps_imag": 0.00183732,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 500 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 600000000.0,
+          "eps_real": 7.37,
+          "eps_imag": 0.0024984300000000003,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 600 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 700000000.0,
+          "eps_real": 7.34,
+          "eps_imag": 0.00318556,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 700 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 800000000.0,
+          "eps_real": 7.22,
+          "eps_imag": 0.0018988599999999998,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 800 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 900000000.0,
+          "eps_real": 7.26,
+          "eps_imag": 0.00225786,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 900 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 1000000000.0,
+          "eps_real": 7.41,
+          "eps_imag": 0.00179322,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite dry powder @ 1000 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 7.26,
+          "eps_imag": 0.00225786,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "dolomite 2.45 GHz carry-over from 900 MHz"
+        }
+      ]
+    },
+    {
+      "label": "orthoclase",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 300000000.0,
+          "eps_real": 4.56,
+          "eps_imag": 0.00029184,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "orthoclase dry powder @ 300 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 400000000.0,
+          "eps_real": 4.54,
+          "eps_imag": 0.00021338,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "orthoclase dry powder @ 400 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 600000000.0,
+          "eps_real": 4.37,
+          "eps_imag": 0.00027968000000000003,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "orthoclase dry powder @ 600 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 700000000.0,
+          "eps_real": 4.4,
+          "eps_imag": 0.0002772,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "orthoclase dry powder @ 700 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 1000000000.0,
+          "eps_real": 4.34,
+          "eps_imag": 0.00018662,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "orthoclase dry powder @ 1000 MHz"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.34,
+          "eps_imag": 0.00018662,
+          "moisture_wt_percent": 0.0,
+          "source": "Church & Webb USBM RI 9035 (CDC 10413)",
+          "notes": "orthoclase 2.45 GHz carry-over from 1000 MHz"
+        }
+      ]
+    }
+  ]
+}

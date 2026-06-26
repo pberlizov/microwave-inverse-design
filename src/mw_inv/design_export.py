@@ -10,7 +10,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from mw_inv.fdfd import Grid, solve, solve_scene
+from mw_inv.fdfd import Grid, solve_scene
 from mw_inv.fom import evaluate
 from mw_inv.geometry import CavityParams, Materials, build_scene
 from mw_inv.openems_export import export_scene_npz, write_openems_model
@@ -71,6 +71,16 @@ def fdfd_selectivity(
     return evaluate(res, scene).selectivity
 
 
+def fdfd_fom(
+    grid: Grid,
+    params: CavityParams,
+    materials: Materials,
+):
+    scene = build_scene(grid, params, materials)
+    res = solve_scene(grid, scene)
+    return evaluate(res, scene)
+
+
 @dataclass(frozen=True)
 class ExportBundle:
     label: str
@@ -78,6 +88,7 @@ class ExportBundle:
     scene_npz_path: Path
     manifest_path: Path
     fdfd_selectivity: float
+    fdfd_coupling_eff: float = 1.0
 
 
 def export_design_bundle(
@@ -95,7 +106,9 @@ def export_design_bundle(
     tag = case.label.replace(" ", "_")
 
     grid = Grid(nx=grid_n, ny=grid_n, Lx=0.36, Ly=0.36)
-    fdfd_sel = fdfd_selectivity(grid, case.params, materials)
+    fom = fdfd_fom(grid, case.params, materials)
+    fdfd_sel = float(fom.selectivity)
+    fdfd_coup = float(fom.coupling_eff)
 
     m_path = write_openems_model(
         out_dir / f"{tag}_cavity.m",
@@ -114,6 +127,7 @@ def export_design_bundle(
         "label": case.label,
         "source": case.source,
         "fdfd_selectivity": fdfd_sel,
+        "fdfd_coupling_eff": fdfd_coup,
         "params": {
             k: getattr(case.params, k)
             for k in case.params.__dataclass_fields__
@@ -139,6 +153,7 @@ def export_design_bundle(
         scene_npz_path=npz_path,
         manifest_path=manifest_path,
         fdfd_selectivity=fdfd_sel,
+        fdfd_coupling_eff=fdfd_coup,
     )
 
 
@@ -175,5 +190,10 @@ def export_all_cases(
     runner += "  end\n"
     runner += "end\n"
     (out_dir / "run_openems_all.m").write_text(runner)
+
+    from mw_inv.tuning_procedure import write_tuning_procedure
+
+    for case, bundle in zip(cases, bundles):
+        write_tuning_procedure(out_dir, case.params, label=case.label.replace(" ", "_"))
 
     return bundles

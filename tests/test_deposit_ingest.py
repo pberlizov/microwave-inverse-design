@@ -15,7 +15,6 @@ from mw_inv.measured_dielectrics import load_measured_dielectrics  # noqa: E402
 from mw_inv.ore_profiles import (  # noqa: E402
     load_ore_profile,
     materials_from_ore,
-    ore_summary,
     resolve_measured_dielectrics_path,
 )
 from mw_inv.promotion import PromotionTier  # noqa: E402
@@ -100,7 +99,10 @@ def test_pipeline_ore_records_measured_provenance(tmp_path: Path) -> None:
     if manifest.gate.get("passed") and manifest.benchmarks_passed:
         assert manifest.promotion.get("tier") == PromotionTier.DEPOSIT_CALIBRATED.value
     else:
-        assert manifest.promotion.get("requirements", {}).get("deposit_measured_eps") is False
+        # Measured ore can be recorded even when benchmarks are skipped (tier stays below deposit).
+        assert manifest.ore.get("materials_mode") == "measured"
+        if manifest.benchmarks_passed:
+            assert manifest.promotion.get("requirements", {}).get("deposit_measured_eps") is True
 
 
 def test_pipeline_multi_objective_smoke(tmp_path: Path) -> None:

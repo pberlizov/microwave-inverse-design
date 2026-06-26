@@ -1,0 +1,20 @@
+{
+  "label": "basalt_gangue_hartlieb",
+  "source": "literature",
+  "description": "Massive basalt gangue (Hartlieb 2016 Table 2 @ 2450 MHz); granite reference matrix.",
+  "fractions": {
+    "basalt": 0.85,
+    "granite": 0.15
+  },
+  "gangue_mineral": "granite",
+  "texture": {
+    "class": "massive",
+    "mean_grain_radius_m": 0.005
+  },
+  "measured_dielectrics": {
+    "path": "../measured_dielectrics/hartlieb_bedrock_v1.json",
+    "target_phase": "basalt",
+    "gangue_phase": "granite",
+    "default_moisture_wt_percent": 0.0
+  }
+}

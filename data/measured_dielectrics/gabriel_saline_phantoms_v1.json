@@ -1,0 +1,141 @@
+{
+  "dataset_id": "gabriel_saline_phantoms_v1",
+  "version": "phantom_data-export",
+  "description": "Gabriel-scaled saline gel phantom \u03b5 @ 2.45 GHz.",
+  "phases": [
+    {
+      "label": "target",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 22.0,
+          "eps_imag": 7.0,
+          "moisture_wt_percent": 3.0,
+          "source": "Gabriel 1996 / phantom_data saline gel anchors @ 2.45 GHz",
+          "notes": "saline_3_vs_0 target gel"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 16.0,
+          "eps_imag": 3.5,
+          "moisture_wt_percent": 2.0,
+          "source": "Gabriel 1996 / phantom_data saline gel anchors @ 2.45 GHz",
+          "notes": "saline_2_vs_0.5 target gel"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 10.5,
+          "eps_imag": 1.2,
+          "moisture_wt_percent": 1.0,
+          "source": "Gabriel 1996 / phantom_data saline gel anchors @ 2.45 GHz",
+          "notes": "saline_1_vs_0 target gel"
+        }
+      ]
+    },
+    {
+      "label": "gangue",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.5,
+          "eps_imag": 0.06,
+          "moisture_wt_percent": 0.0,
+          "source": "Gabriel 1996 / phantom_data saline gel anchors @ 2.45 GHz",
+          "notes": "saline_3_vs_0 gangue gel"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 7.0,
+          "eps_imag": 0.35,
+          "moisture_wt_percent": 0.5,
+          "source": "Gabriel 1996 / phantom_data saline gel anchors @ 2.45 GHz",
+          "notes": "saline_2_vs_0.5 gangue gel"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.5,
+          "eps_imag": 0.06,
+          "moisture_wt_percent": 0.0,
+          "source": "Gabriel 1996 / phantom_data saline gel anchors @ 2.45 GHz",
+          "notes": "saline_1_vs_0 gangue gel"
+        }
+      ]
+    },
+    {
+      "label": "saline_0.0pct",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.5,
+          "eps_imag": 0.06,
+          "moisture_wt_percent": 0.0,
+          "source": "Gabriel 1996 / phantom_data saline gel anchors @ 2.45 GHz",
+          "notes": "NaCl 0.0 wt% agar gel"
+        }
+      ]
+    },
+    {
+      "label": "saline_0.5pct",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 7.0,
+          "eps_imag": 0.35,
+          "moisture_wt_percent": 0.5,
+          "source": "Gabriel 1996 / phantom_data saline gel anchors @ 2.45 GHz",
+          "notes": "NaCl 0.5 wt% agar gel"
+        }
+      ]
+    },
+    {
+      "label": "saline_1.0pct",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 10.5,
+          "eps_imag": 1.2,
+          "moisture_wt_percent": 1.0,
+          "source": "Gabriel 1996 / phantom_data saline gel anchors @ 2.45 GHz",
+          "notes": "NaCl 1.0 wt% agar gel"
+        }
+      ]
+    },
+    {
+      "label": "saline_2.0pct",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 16.0,
+          "eps_imag": 3.5,
+          "moisture_wt_percent": 2.0,
+          "source": "Gabriel 1996 / phantom_data saline gel anchors @ 2.45 GHz",
+          "notes": "NaCl 2.0 wt% agar gel"
+        }
+      ]
+    },
+    {
+      "label": "saline_3.0pct",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 22.0,
+          "eps_imag": 7.0,
+          "moisture_wt_percent": 3.0,
+          "source": "Gabriel 1996 / phantom_data saline gel anchors @ 2.45 GHz",
+          "notes": "NaCl 3.0 wt% agar gel"
+        }
+      ]
+    }
+  ]
+}

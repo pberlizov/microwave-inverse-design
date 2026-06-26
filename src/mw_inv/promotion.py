@@ -157,6 +157,17 @@ def _bench_calibration_ok(
     return True
 
 
+def _deposit_bruggeman_calibration_ok(cal_block: dict | None) -> bool:
+    """When Bruggeman calibration was evaluated, it must pass declared tolerance."""
+    if cal_block is None:
+        return True
+    if cal_block.get("error"):
+        return False
+    if "passes_calibration" in cal_block:
+        return bool(cal_block["passes_calibration"])
+    return bool(cal_block.get("passes_default_tolerance", True))
+
+
 def _deposit_calibration_ok(ore_block: dict | None) -> bool:
     """Deposit tier: pipeline run used validated measured ore ε, not Bruggeman-only."""
     if not ore_block:
@@ -175,6 +186,20 @@ def _deposit_calibration_ok(ore_block: dict | None) -> bool:
     return bool(dataset.get("dataset_id") or dataset.get("phases"))
 
 
+def _campaign_deposit_ok(campaign_block: dict | None) -> bool:
+    """Campaign path: linked measured dielectrics library on the campaign manifest."""
+    if not campaign_block:
+        return False
+    return bool(campaign_block.get("measured_dielectrics"))
+
+
+def _deposit_envelope_gate_ok(gate_block: dict | None) -> bool:
+    """When an envelope gate was evaluated, it must pass for deposit tier."""
+    if gate_block is None:
+        return True
+    return bool(gate_block.get("passed"))
+
+
 def _pilot_ready_ok(pilot_gate: dict | None) -> bool:
     """Pilot tier: explicit pilot_gate block from pipeline evaluation."""
     if not pilot_gate:
@@ -188,6 +213,9 @@ def assess_promotion(
     gate: ValidationGateReport | None = None,
     triangulation_rows: list[Any] | None = None,
     ore_block: dict | None = None,
+    campaign_block: dict | None = None,
+    deposit_envelope_gate: dict | None = None,
+    deposit_calibration: dict | None = None,
     phantom_label: str | None = None,
     measured_eps_path: str | None = None,
     lab_measurements_path: str | None = None,
@@ -197,7 +225,10 @@ def assess_promotion(
 
     lit = benchmarks_passed is True
     fdfd = lit and gate is not None and gate.passed
-    deposit_ok = fdfd and _deposit_calibration_ok(ore_block)
+    deposit_material = _deposit_calibration_ok(ore_block) or _campaign_deposit_ok(campaign_block)
+    envelope_ok = _deposit_envelope_gate_ok(deposit_envelope_gate)
+    bruggeman_ok = _deposit_bruggeman_calibration_ok(deposit_calibration)
+    deposit_ok = fdfd and deposit_material and envelope_ok and bruggeman_ok
     has_ext = _external_solver_data_present(triangulation_rows)
     solver_ok = fdfd and has_ext and _solver_gate_checks_ok(gate)
     bench_ok = solver_ok and _bench_calibration_ok(
@@ -210,7 +241,9 @@ def assess_promotion(
     reqs = {
         "literature_benchmarks": lit,
         "fdfd_gate": fdfd,
-        "deposit_measured_eps": deposit_ok,
+        "deposit_measured_eps": deposit_material,
+        "deposit_envelope_gate": envelope_ok if deposit_envelope_gate is not None else True,
+        "deposit_bruggeman_calibration": bruggeman_ok if deposit_calibration is not None else True,
         "external_solver_validation": solver_ok,
         "bench_phantom_calibration": bench_ok,
         "pilot_safety_repeatability": pilot_ok,
@@ -218,8 +251,18 @@ def assess_promotion(
     notes: list[str] = []
     if fdfd and not has_ext:
         notes.append("solver_triangulated requires MEEP/openEMS data — tier capped below solver")
-    if fdfd and ore_block and ore_block.get("materials_mode") != "measured":
-        notes.append("deposit_calibrated requires --ore with validated measured_dielectrics")
+    if fdfd and not deposit_material:
+        notes.append(
+            "deposit_calibrated requires --ore with validated measured_dielectrics "
+            "or --campaign with measured_dielectrics"
+        )
+    if deposit_envelope_gate is not None and not envelope_ok:
+        notes.append("deposit_calibrated requires passing deposit envelope gate (min-over-ores)")
+    if deposit_calibration is not None and not bruggeman_ok:
+        notes.append(
+            "deposit_calibrated requires passing Bruggeman calibration "
+            "(run --calibrate-deposit; max rel error within tolerance)"
+        )
     if solver_ok and not bench_ok:
         notes.append("bench_calibrated requires measured_eps.json within drift tolerance")
     if bench_ok and not pilot_ok:
@@ -256,6 +299,9 @@ def tier_from_manifest(manifest: dict[str, Any]) -> PromotionTier:
         gate=_gate_from_dict(manifest.get("gate")),
         triangulation_rows=_rows_from_dict(manifest.get("triangulation", {})),
         ore_block=manifest.get("ore"),
+        campaign_block=manifest.get("evaluation", {}).get("campaign"),
+        deposit_envelope_gate=manifest.get("evaluation", {}).get("deposit_envelope_gate"),
+        deposit_calibration=manifest.get("evaluation", {}).get("deposit_calibration"),
         phantom_label=manifest.get("bench", {}).get("phantom_label"),
         measured_eps_path=manifest.get("bench", {}).get("measured_eps_path"),
         lab_measurements_path=manifest.get("bench", {}).get("lab_measurements_path"),
@@ -292,6 +338,8 @@ def _rows_from_dict(block: dict) -> list[Any] | None:
         out.append(SolverRow(
             label=r["label"],
             fdfd_selectivity=float(r["fdfd_selectivity"]),
+            fdfd_coupling_eff=r.get("fdfd_coupling_eff"),
+            fdfd_pec_loss_fraction=r.get("fdfd_pec_loss_fraction"),
             meep_2d_selectivity=r.get("meep_2d_selectivity"),
             meep_3d_primitive_selectivity=r.get("meep_3d_primitive_selectivity"),
             openems_selectivity=r.get("openems_selectivity"),

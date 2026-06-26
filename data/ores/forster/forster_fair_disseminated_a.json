@@ -1,0 +1,22 @@
+{
+  "label": "forster_fair_disseminated_a",
+  "source": "forster_phd_2023",
+  "heating_class": "II_fair",
+  "hmap_wt_percent": 2.5,
+  "fractions": {
+    "quartz": 0.6,
+    "calcite": 0.25,
+    "pyrite": 0.025
+  },
+  "gangue_mineral": "calcite",
+  "texture": {
+    "class": "disseminated",
+    "mean_grain_radius_m": 0.002
+  },
+  "measured_dielectrics": {
+    "path": "../../measured_dielectrics/forster_hmap_minerals_v1.json",
+    "target_phase": "pyrite",
+    "gangue_phase": "calcite",
+    "default_moisture_wt_percent": 0.0
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "label": "forster_excellent_galena",
+  "source": "forster_phd_2023",
+  "heating_class": "IV_excellent",
+  "hmap_wt_percent": 45.0,
+  "fractions": {
+    "calcite": 0.12,
+    "galena": 0.4,
+    "sphalerite": 0.05
+  },
+  "gangue_mineral": "calcite",
+  "texture": {
+    "class": "disseminated",
+    "mean_grain_radius_m": 0.002
+  },
+  "measured_dielectrics": {
+    "path": "../../measured_dielectrics/forster_hmap_minerals_v1.json",
+    "target_phase": "galena",
+    "gangue_phase": "calcite",
+    "default_moisture_wt_percent": 0.0
+  }
+}

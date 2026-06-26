@@ -1,0 +1,22 @@
+{
+  "label": "forster_low_sulphide_a",
+  "source": "forster_phd_2023",
+  "heating_class": "I_poor",
+  "hmap_wt_percent": 1.5,
+  "fractions": {
+    "quartz": 0.65,
+    "calcite": 0.2,
+    "pyrite": 0.015
+  },
+  "gangue_mineral": "quartz",
+  "texture": {
+    "class": "disseminated",
+    "mean_grain_radius_m": 0.002
+  },
+  "measured_dielectrics": {
+    "path": "../../measured_dielectrics/forster_hmap_minerals_v1.json",
+    "target_phase": "pyrite",
+    "gangue_phase": "quartz",
+    "default_moisture_wt_percent": 0.0
+  }
+}

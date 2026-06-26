@@ -14,8 +14,8 @@ from mw_inv.rf_port_report import build_port_report  # noqa: E402
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--unloaded-s1p", required=True)
-    ap.add_argument("--loaded-s1p", default=None)
+    ap.add_argument("--unloaded-s1p", required=True, help="Touchstone .sNp (unloaded)")
+    ap.add_argument("--loaded-s1p", default=None, help="Touchstone .sNp (loaded)")
     ap.add_argument("--openems-port-metrics", default=None, help="port_metrics.json from openEMS")
     ap.add_argument("--out", default="data/rf_port_report.json")
     ap.add_argument("--freq", type=float, default=2.45e9)
@@ -39,4 +39,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

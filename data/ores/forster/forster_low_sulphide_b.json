@@ -1,0 +1,23 @@
+{
+  "label": "forster_low_sulphide_b",
+  "source": "forster_phd_2023",
+  "heating_class": "I_poor",
+  "hmap_wt_percent": 1.8,
+  "fractions": {
+    "feldspar": 0.55,
+    "quartz": 0.3,
+    "pyrite": 0.018,
+    "galena": 0.002
+  },
+  "gangue_mineral": "feldspar",
+  "texture": {
+    "class": "disseminated",
+    "mean_grain_radius_m": 0.002
+  },
+  "measured_dielectrics": {
+    "path": "../../measured_dielectrics/forster_hmap_minerals_v1.json",
+    "target_phase": "pyrite",
+    "gangue_phase": "feldspar",
+    "default_moisture_wt_percent": 0.0
+  }
+}

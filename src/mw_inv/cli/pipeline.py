@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
+from dataclasses import replace
 from pathlib import Path
 
 from mw_inv.benchmarks import run_benchmarks, write_report
@@ -12,6 +13,7 @@ from mw_inv.fdfd import Grid
 from mw_inv.geometry import CavityParams, Materials
 from mw_inv.materials import DEFAULT_PAIR, PAIRS
 from mw_inv.ore_profiles import (
+    OreComposition,
     cavity_params_from_ore,
     load_ore_profile,
     materials_from_ore,
@@ -26,7 +28,7 @@ from mw_inv.openems_runner import (
 from mw_inv.pilot_gate import DEFAULT_MIN_COUPLING_EFF, evaluate_pilot_gate
 from mw_inv.promotion import PromotionTier, meets_tier
 from mw_inv.provenance import default_provenance
-from mw_inv.run_manifest import RunManifest, default_run_dir
+from mw_inv.run_manifest import RunManifest, default_run_dir, finalize_promotion
 from mw_inv.run_refresh import apply_triangulation_refresh
 from mw_inv.search import (
     DEFAULT_MAX_HOTSPOT_DELTA_T_K,
@@ -45,7 +47,7 @@ from mw_inv.search import (
     trial_to_dict,
 )
 from mw_inv.validation_gate import GateThresholds
-from mw_inv.rf_port_report import build_port_report
+from mw_inv.rf_port_report import build_port_report, evaluate_rf_gate
 
 
 def _robustness_block(
@@ -63,6 +65,8 @@ def _robustness_block(
     ore_profile_path: str | None = None,
     ore_kw: dict | None = None,
     n_material_scenarios: int = 6,
+    ism_band=None,
+    mfg_tol_frac: float = 0.02,
 ) -> dict:
     """Compute optional robustness summaries for untuned vs best."""
     from mw_inv.ensemble import (
@@ -73,6 +77,8 @@ def _robustness_block(
     )
 
     out: dict[str, object] = {"mode": mode}
+    if ism_band is not None:
+        out["ism_band"] = ism_band.to_dict()
     ore_kw = ore_kw or {}
     if mode == "material":
         if ore is None:
@@ -110,12 +116,13 @@ def _robustness_block(
             seed=seed, ore=ore,
         ).to_dict()
     if mode in ("freq", "freq_ensemble"):
+        freq_kw = {"band": ism_band} if ism_band is not None else {}
         if mode == "freq":
             out["untuned_freq"] = evaluate_frequency_robust(
-                grid, untuned, materials, pair_label=None, n_freqs=n_freqs,
+                grid, untuned, materials, pair_label=None, n_freqs=n_freqs, **freq_kw,
             ).to_dict()
             out["best_freq"] = evaluate_frequency_robust(
-                grid, best_params, materials, pair_label=None, n_freqs=n_freqs,
+                grid, best_params, materials, pair_label=None, n_freqs=n_freqs, **freq_kw,
             ).to_dict()
         else:
             out["untuned_freq_ensemble"] = evaluate_frequency_robust_ensemble(
@@ -138,6 +145,16 @@ def _robustness_block(
                 seed=seed,
                 n_freqs=n_freqs,
             ).to_dict()
+    if mode == "manufacturing":
+        from mw_inv.manufacturing_tolerance import evaluate_manufacturing_robust
+
+        mfg_kw = {"n_samples": n_realizations, "placement_tol_frac": mfg_tol_frac, "seed": seed}
+        out["untuned_manufacturing"] = evaluate_manufacturing_robust(
+            grid, untuned, materials, **mfg_kw,
+        ).to_dict()
+        out["best_manufacturing"] = evaluate_manufacturing_robust(
+            grid, best_params, materials, **mfg_kw, seed=seed + 1,
+        ).to_dict()
     return out
 
 
@@ -166,6 +183,9 @@ def _robust_gate(block: dict, *, min_improvement: float, floor: float) -> dict:
     elif mode == "freq_ensemble":
         u = pick_min("untuned_freq_ensemble")
         b = pick_min("best_freq_ensemble")
+    elif mode == "manufacturing":
+        u = pick_min("untuned_manufacturing")
+        b = pick_min("best_manufacturing")
     else:
         return {"passed": False, "detail": f"unknown robustness mode {mode!r}"}
 
@@ -265,20 +285,21 @@ def _run_search(
     legacy: bool,
     base_params: CavityParams | None = None,
     store_top_k: int = 0,
+    freq_robust: bool = False,
 ) -> dict:
     params0 = base_params or CavityParams()
     base = evaluate_params(grid, params0, materials, legacy=legacy)
     t0 = time.time()
     rnd = random_search(grid, trials, seed=seed, base=params0, materials=materials, legacy=legacy)
     t1 = time.time()
-    tpe = optuna_search(grid, trials, seed=seed, base=params0, materials=materials, legacy=legacy)
+    tpe = optuna_search(grid, trials, seed=seed, base=params0, materials=materials, legacy=legacy, freq_robust=freq_robust)
     rnd_best = best(rnd)
     tpe_best = best(tpe)
     summary = {
         "trials": trials,
         "seed": seed,
         "materials": materials.pair_label or "custom",
-        "search_mode": "legacy" if legacy else "manufacturable",
+        "search_mode": "legacy" if legacy else ("freq_robust" if freq_robust else "manufacturable"),
         "baseline_untuned": {
             "selectivity": base.selectivity,
             "contrast": base.contrast,
@@ -311,11 +332,16 @@ def _run_multi_search(
     legacy: bool,
     base_params: CavityParams | None = None,
     store_top_k: int = 0,
+    freq_robust: bool = False,
+    industrial_objectives: bool = False,
     check_arcing: bool = False,
     check_hotspot: bool = False,
     max_hotspot_delta_T_K: float = DEFAULT_MAX_HOTSPOT_DELTA_T_K,
+    hotspot_evolved: bool = True,
     weight_selectivity: float = 0.6,
     weight_coupling: float = 0.4,
+    weight_gangue_budget: float = 0.0,
+    weight_particle_floor: float = 0.0,
 ) -> dict:
     """Multi-objective search; maps Pareto recommendation into tpe_search for gate/export."""
     params0 = base_params or CavityParams()
@@ -328,9 +354,12 @@ def _run_multi_search(
         base=params0,
         materials=materials,
         legacy=legacy,
+        freq_robust=freq_robust,
+        industrial_objectives=industrial_objectives,
         check_arcing=check_arcing,
         check_hotspot=check_hotspot,
         max_hotspot_delta_T_K=max_hotspot_delta_T_K,
+        hotspot_evolved=hotspot_evolved,
     )
     elapsed = time.time() - t0
     recommended = pareto_recommend(
@@ -338,6 +367,8 @@ def _run_multi_search(
         study,
         weight_selectivity=weight_selectivity,
         weight_coupling=weight_coupling,
+        weight_gangue_budget=weight_gangue_budget,
+        weight_particle_floor=weight_particle_floor,
         exclude_arcing=check_arcing,
         exclude_hotspot=check_hotspot,
     )
@@ -363,13 +394,20 @@ def _run_multi_search(
             "source": "pareto_recommend",
         },
         "multi_search": {
-            "objectives": ["em_selectivity", "coupling_eff"],
+            "objectives": (
+                ["em_selectivity", "coupling_eff", "gangue_budget", "particle_floor"]
+                if industrial_objectives
+                else ["em_selectivity", "coupling_eff"]
+            ),
+            "industrial_objectives": industrial_objectives,
             "check_arcing": check_arcing,
             "check_hotspot": check_hotspot,
             "max_hotspot_delta_T_K": max_hotspot_delta_T_K,
             "weights": {
                 "selectivity": weight_selectivity,
                 "coupling": weight_coupling,
+                "gangue_budget": weight_gangue_budget,
+                "particle_floor": weight_particle_floor,
             },
             "recommended": multi_trial_to_dict(recommended),
             "best_selectivity": multi_trial_to_dict(best_sel),
@@ -399,6 +437,12 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--grid", type=int, default=71)
     ap.add_argument("--seed", type=int, default=1903)
     ap.add_argument("--run-dir", default=None, help="output directory (default: data/runs/<timestamp>)")
+    ap.add_argument(
+        "--target-tier",
+        default=PromotionTier.FDFD_OPTIMISED.value,
+        choices=[t.value for t in PromotionTier],
+        help="minimum evidence tier this run should achieve (enables required steps)",
+    )
     ap.add_argument("--search", default=None, help="reuse existing search_summary.json")
     ap.add_argument("--skip-benchmarks", action="store_true")
     ap.add_argument("--skip-export", action="store_true")
@@ -417,18 +461,22 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--lab-measurements", default=None, help="bench measurements JSON for phantom compare")
     ap.add_argument("--bench-study", action="store_true", help="run phantom prediction/compare step")
     ap.add_argument("--bench-enforce", action="store_true", help="fail pipeline if bench gate fails")
-    ap.add_argument("--vna-unloaded-s1p", default=None, help="Touchstone .s1p for unloaded cavity S11")
-    ap.add_argument("--vna-loaded-s1p", default=None, help="Touchstone .s1p for loaded cavity/charge S11")
+    ap.add_argument("--vna-unloaded-s1p", default=None, help="Touchstone .sNp for unloaded cavity S11 (e.g. .s1p/.s2p)")
+    ap.add_argument("--vna-loaded-s1p", default=None, help="Touchstone .sNp for loaded cavity/charge S11 (e.g. .s1p/.s2p)")
     ap.add_argument("--vna-freq", type=float, default=2.45e9, help="evaluation frequency for VNA summary (Hz)")
     ap.add_argument("--vna-band-lo", type=float, default=None, help="optional band low edge (Hz)")
     ap.add_argument("--vna-band-hi", type=float, default=None, help="optional band high edge (Hz)")
     ap.add_argument("--vna-openems-port-metrics", default=None, help="optional openEMS port_metrics.json for S11 compare")
+    ap.add_argument("--rf-enforce", action="store_true", help="fail pipeline if RF gate fails (requires loaded trace)")
+    ap.add_argument("--rf-max-unloaded-s11", type=float, default=0.92)
+    ap.add_argument("--rf-max-loaded-s11", type=float, default=0.92)
+    ap.add_argument("--rf-max-loaded-minus-unloaded", type=float, default=0.10)
     ap.add_argument("--bench-grid", type=int, default=61)
     ap.add_argument("--bench-trials", type=int, default=12)
     ap.add_argument("--bench-seed", type=int, default=7701)
     ap.add_argument(
         "--robust",
-        choices=("none", "freq", "ensemble", "freq_ensemble", "material"),
+        choices=("none", "freq", "ensemble", "freq_ensemble", "material", "manufacturing"),
         default="none",
         help="optional robustness evaluation for untuned vs best",
     )
@@ -440,6 +488,12 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--robust-enforce", action="store_true", help="fail the pipeline if robustness gate fails")
     ap.add_argument("--robust-floor", type=float, default=0.0, help="minimum acceptable robust min selectivity")
     ap.add_argument("--robust-min-improvement", type=float, default=0.0, help="minimum robust min-selectivity improvement vs untuned")
+    ap.add_argument(
+        "--manufacturing-tol",
+        type=float,
+        default=0.02,
+        help="± fractional placement tolerance for --robust manufacturing",
+    )
     ap.add_argument(
         "--pilot-min-coupling",
         type=float,
@@ -458,6 +512,11 @@ def main(argv: list[str] | None = None) -> None:
         help="Pareto search: selectivity × coupling_eff (recommended → tpe_search slot)",
     )
     ap.add_argument(
+        "--multi-industrial",
+        action="store_true",
+        help="with --multi-objective: 4-objective Pareto (+ gangue budget, particle floor)",
+    )
+    ap.add_argument(
         "--check-arcing",
         action="store_true",
         help="with --multi-objective: penalise/filter arcing-risk trials",
@@ -473,6 +532,33 @@ def main(argv: list[str] | None = None) -> None:
         default=DEFAULT_MAX_HOTSPOT_DELTA_T_K,
         help="max target peak rise above ambient [K] when --check-hotspot (default 475)",
     )
+    ap.add_argument(
+        "--hotspot-frozen",
+        action="store_true",
+        help="hotspot gate uses frozen RT ε instead of evolved ε(T)+phase rules",
+    )
+    ap.add_argument(
+        "--hotspot-gate-enforce",
+        action="store_true",
+        help="fail if evolved hotspot gate fails on tpe_best",
+    )
+    ap.add_argument(
+        "--particle-p05-floor",
+        type=float,
+        default=0.0,
+        help="min p05 target particle power fraction (D2 tail gate)",
+    )
+    ap.add_argument(
+        "--particle-tail-enforce",
+        action="store_true",
+        help="fail if particle tail gate fails on tpe_best",
+    )
+    ap.add_argument(
+        "--particle-max-gangue",
+        type=float,
+        default=1.0,
+        help="max gangue power fraction for particle tail gate",
+    )
     ap.add_argument("--weight-selectivity", type=float, default=0.6, help="multi-objective Pareto pick weight")
     ap.add_argument("--weight-coupling", type=float, default=0.4, help="multi-objective Pareto pick weight")
     ap.add_argument("--openems-dump-dir", default=None, help="openEMS dump root (expects <case>/Et/Et_0000.h5)")
@@ -481,6 +567,17 @@ def main(argv: list[str] | None = None) -> None:
         type=int,
         default=0,
         help="FDFD pre-screen: export/triangulate untuned + top-K TPE trials (0 = legacy 3-case)",
+    )
+    ap.add_argument(
+        "--openems-budget",
+        type=int,
+        default=0,
+        help="max openEMS export cases after FDFD gate scheduling (0 = no cap)",
+    )
+    ap.add_argument(
+        "--openems-include-untuned",
+        action="store_true",
+        help="include untuned baseline in openEMS schedule when gate passes",
     )
     ap.add_argument(
         "--run-openems",
@@ -514,17 +611,154 @@ def main(argv: list[str] | None = None) -> None:
         default=0.01,
         help="minimum FDFD selectivity gain (tpe_best − untuned) for validation gate",
     )
+    ap.add_argument("--gate-fdfd-coupling-floor", type=float, default=0.10)
+    ap.add_argument("--gate-fdfd-pec-loss-max", type=float, default=0.60)
+    ap.add_argument("--gate-require-openems", action="store_true", help="require openEMS port metrics for validation gate")
+    ap.add_argument(
+        "--structure-model",
+        choices=("dirichlet", "lossy_imag"),
+        default="dirichlet",
+        help="internal metal model: true PEC (dirichlet) or legacy lossy Im(eps)",
+    )
+    ap.add_argument(
+        "--ism-band",
+        choices=("fixed", "full", "tunable"),
+        default=None,
+        help="ISM frequency band for --robust freq/freq_ensemble (default: full when robust enabled)",
+    )
+    ap.add_argument("--ism-band-samples", type=int, default=5, help="frequency samples in ISM band")
+    ap.add_argument(
+        "--ore-envelope",
+        type=str,
+        default=None,
+        help="evaluate TPE best over deposit ore envelope (directory or glob root)",
+    )
+    ap.add_argument(
+        "--campaign",
+        type=str,
+        default=None,
+        help="campaign.json path under data/campaigns/ (overrides --ore-envelope)",
+    )
+    ap.add_argument(
+        "--calibrate-deposit",
+        action="store_true",
+        help="with --ore: Bruggeman vs measured ε diff report",
+    )
+    ap.add_argument(
+        "--calibrate-baseline",
+        type=str,
+        default=None,
+        help="previous deposit_calibration_report.json for changelog diff",
+    )
+    ap.add_argument(
+        "--calibrate-max-rel-error",
+        type=float,
+        default=0.25,
+        help="max relative ε error for Bruggeman calibration pass",
+    )
+    ap.add_argument(
+        "--calibrate-deposit-enforce",
+        action="store_true",
+        help="fail pipeline if Bruggeman calibration exceeds tolerance",
+    )
+    ap.add_argument(
+        "--envelope-min-selectivity",
+        type=float,
+        default=0.0,
+        help="deposit envelope gate: min selectivity over ores",
+    )
+    ap.add_argument(
+        "--envelope-min-coupling",
+        type=float,
+        default=0.10,
+        help="deposit envelope gate: min coupling_eff over ores",
+    )
+    ap.add_argument(
+        "--envelope-max-gangue",
+        type=float,
+        default=0.85,
+        help="deposit envelope gate: max gangue power fraction",
+    )
+    ap.add_argument(
+        "--envelope-max-pec-loss",
+        type=float,
+        default=0.15,
+        help="deposit envelope gate: max pec_loss_fraction over ores",
+    )
+    ap.add_argument(
+        "--search-ism-band",
+        choices=("none", "fixed", "full"),
+        default="none",
+        help="constrain search frequency: fixed=2.45 GHz geometry-only, full=ISM band (legacy)",
+    )
+    ap.add_argument("--weight-gangue-budget", type=float, default=0.0, help="multi-objective Pareto pick weight")
+    ap.add_argument("--weight-particle-floor", type=float, default=0.0, help="multi-objective min particle fraction weight")
+    ap.add_argument("--robust-p05-floor", type=float, default=0.0, help="min p05 selectivity (material) or min selectivity (freq)")
+    ap.add_argument("--robust-p05-enforce", action="store_true", help="fail if uncertainty gate fails")
+    ap.add_argument(
+        "--envelope-enforce",
+        action="store_true",
+        help="fail pipeline if deposit envelope gate fails",
+    )
     args = ap.parse_args(argv)
     if args.materials and args.ore:
         ap.error("--materials and --ore are mutually exclusive")
     if args.robust == "material" and not args.ore:
         ap.error("--robust material requires --ore")
+    if args.campaign and args.ore_envelope:
+        ap.error("--campaign and --ore-envelope are mutually exclusive")
+    if args.calibrate_deposit and not args.ore:
+        ap.error("--calibrate-deposit requires --ore")
+    if args.multi_industrial and not args.multi_objective:
+        ap.error("--multi-industrial requires --multi-objective")
+    hotspot_evolved = not args.hotspot_frozen
     if args.run_openems and args.synthesize_openems_dumps:
         ap.error("--run-openems and --synthesize-openems-dumps are mutually exclusive")
     if (args.run_openems or args.synthesize_openems_dumps) and args.skip_export:
         ap.error("openEMS ingest requires export; omit --skip-export")
     if args.run_openems and args.openems_dump_dir:
         ap.error("use either --run-openems or --openems-dump-dir, not both")
+
+    target_tier = PromotionTier(args.target_tier)
+    require_solver = meets_tier(target_tier, PromotionTier.SOLVER_TRIANGULATED)
+    require_bench = meets_tier(target_tier, PromotionTier.BENCH_CALIBRATED)
+    require_deposit = target_tier == PromotionTier.DEPOSIT_CALIBRATED
+    tier_enforce = target_tier != PromotionTier.FDFD_OPTIMISED
+
+    if require_deposit:
+        args.envelope_enforce = True
+        if not args.campaign and not args.ore_envelope:
+            ap.error(
+                "--target-tier deposit_calibrated requires --campaign or --ore-envelope "
+                "(min-over-ores envelope gate)"
+            )
+
+    if require_solver:
+        # openEMS is the default arbiter at/above solver_triangulated.
+        args.openems_force = True
+        args.gate_require_openems = True
+        if not args.openems_dump_dir and not args.run_openems and not args.synthesize_openems_dumps:
+            if octave_available(args.openems_octave):
+                args.run_openems = True
+            else:
+                ap.error(
+                    "--target-tier solver_triangulated requires openEMS evidence: "
+                    "pass --openems-dump-dir, or install Octave/openEMS and re-run, "
+                    "or (CI/dev only) use --synthesize-openems-dumps."
+                )
+
+    if require_bench:
+        # Tight bench loop: probe ε + bench ΔT rank + RF (VNA) traces.
+        args.bench_enforce = True
+        args.rf_enforce = True
+        if not args.phantom:
+            ap.error("--target-tier bench_calibrated requires --phantom")
+        if not args.measured_eps:
+            ap.error("--target-tier bench_calibrated requires --measured-eps")
+        if not args.lab_measurements:
+            ap.error("--target-tier bench_calibrated requires --lab-measurements")
+        if not args.vna_unloaded_s1p or not args.vna_loaded_s1p:
+            ap.error("--target-tier bench_calibrated requires --vna-unloaded-s1p and --vna-loaded-s1p")
 
     run_dir = Path(args.run_dir) if args.run_dir else default_run_dir()
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -535,7 +769,15 @@ def main(argv: list[str] | None = None) -> None:
     ore_obj = None
     ore_path: Path | None = None
     ore_kw: dict = {}
-    base_params = CavityParams()
+    base_params = CavityParams(structure_model=args.structure_model)
+    search_freq_robust = False
+    if args.search_ism_band == "fixed":
+        from mw_inv.ism_band import ISM_CENTER_HZ
+
+        base_params = replace(base_params, freq_hz=ISM_CENTER_HZ)
+        search_freq_robust = True
+    elif args.search_ism_band == "full":
+        search_freq_robust = False  # freq_hz remains in search space (2.40–2.50 GHz)
 
     if args.ore:
         ore_path = Path(args.ore)
@@ -549,6 +791,7 @@ def main(argv: list[str] | None = None) -> None:
         )
         materials = materials_from_ore(ore_obj, **ore_kw)
         base_params = cavity_params_from_ore(ore_obj, cavity_span_m=grid.Lx)
+        base_params = replace(base_params, structure_model=args.structure_model)
         ore_block = {
             **ore_summary(ore_obj, **ore_kw),
             "json_path": str(ore_path.resolve()),
@@ -599,11 +842,19 @@ def main(argv: list[str] | None = None) -> None:
         )
         rf_path = run_dir / "rf_port_report.json"
         rf_path.write_text(json.dumps(rf_report.to_dict(), indent=2))
+        rf_gate = evaluate_rf_gate(
+            rf_report,
+            max_unloaded_s11=args.rf_max_unloaded_s11,
+            max_loaded_s11=args.rf_max_loaded_s11,
+            max_loaded_minus_unloaded=args.rf_max_loaded_minus_unloaded,
+        )
         manifest.bench.setdefault("rf", {})
-        manifest.bench["rf"]["rf_port_report_path"] = str(rf_path)
-        manifest.bench["rf"]["unloaded_s11_mag"] = rf_report.unloaded.get("s11_mag")
-        if rf_report.loaded is not None:
-            manifest.bench["rf"]["loaded_s11_mag"] = rf_report.loaded.get("s11_mag")
+        manifest.bench["rf"].update({
+            "rf_port_report_path": str(rf_path),
+            "unloaded_s11_mag": rf_report.unloaded.get("s11_mag"),
+            "loaded_s11_mag": rf_report.loaded.get("s11_mag") if rf_report.loaded is not None else None,
+            "gate": rf_gate.to_dict(),
+        })
 
     # --- benchmarks ---
     if not args.skip_benchmarks:
@@ -633,8 +884,13 @@ def main(argv: list[str] | None = None) -> None:
                 check_arcing=args.check_arcing,
                 check_hotspot=args.check_hotspot,
                 max_hotspot_delta_T_K=args.max_hotspot_dt,
+                hotspot_evolved=hotspot_evolved,
                 weight_selectivity=args.weight_selectivity,
                 weight_coupling=args.weight_coupling,
+                weight_gangue_budget=args.weight_gangue_budget,
+                weight_particle_floor=args.weight_particle_floor,
+                freq_robust=search_freq_robust,
+                industrial_objectives=args.multi_industrial,
             )
             sel = manifest.search_summary["tpe_search"]["best_selectivity"]
             print(f"  search: multi-objective pareto sel={sel:.4f} -> {search_path}")
@@ -647,6 +903,7 @@ def main(argv: list[str] | None = None) -> None:
                 legacy=args.legacy,
                 base_params=base_params,
                 store_top_k=args.openems_top_k,
+                freq_robust=search_freq_robust,
             )
             print(
                 f"  search: TPE sel={manifest.search_summary['tpe_search']['best_selectivity']:.4f} -> {search_path}"
@@ -665,6 +922,143 @@ def main(argv: list[str] | None = None) -> None:
         "untuned": ev.evaluate(untuned_params).to_dict(),
         "tpe_best": ev.evaluate_dict(tpe_params, base=untuned_params).to_dict() if tpe_params else {},
     }
+    pair_for_hotspot = materials_label if materials_label in PAIRS else None
+    if pair_for_hotspot and tpe_params and (args.check_hotspot or args.hotspot_gate_enforce):
+        from mw_inv.hotspot_gate import evaluate_hotspot_gate
+        from mw_inv.search import params_from_dict
+
+        best_p = params_from_dict(tpe_params, base=untuned_params)
+        hg = evaluate_hotspot_gate(
+            grid,
+            best_p,
+            pair_for_hotspot,
+            max_hotspot_delta_T_K=args.max_hotspot_dt,
+            uses_evolved=hotspot_evolved,
+        )
+        manifest.evaluation["hotspot_gate"] = hg.to_dict()
+        print(
+            f"  hotspot gate: {'PASS' if hg.passed else 'FAIL'} "
+            f"(evolved ΔT={hg.evolved_delta_T_K:.1f} K, frozen={hg.frozen_delta_T_K:.1f} K)"
+        )
+        if args.hotspot_gate_enforce and not hg.passed:
+            manifest.notes.append("hotspot gate failed (evolved ε(T))")
+            manifest.write(run_dir / "manifest.json")
+            raise SystemExit(10)
+    if tpe_params and (args.particle_p05_floor > 0 or args.particle_tail_enforce):
+        from mw_inv.particle_tail_gate import evaluate_particle_tail_gate
+
+        tpe_foms = manifest.evaluation.get("tpe_best", {}).get("foms", {})
+        ptg = evaluate_particle_tail_gate(
+            tpe_foms,
+            min_p05_particle_fraction=args.particle_p05_floor,
+            max_gangue_power_fraction=args.particle_max_gangue,
+        )
+        manifest.evaluation["particle_tail_gate"] = ptg.to_dict()
+        print(f"  particle tail gate: {'PASS' if ptg.passed else 'FAIL'}")
+        if args.particle_tail_enforce and not ptg.passed:
+            manifest.notes.append("particle tail gate failed")
+            manifest.write(run_dir / "manifest.json")
+            raise SystemExit(11)
+    if args.calibrate_deposit and ore_path is not None:
+        from mw_inv.deposit_calibration import (
+            calibrate_ore_profile,
+            write_calibration_changelog,
+            write_calibration_diff,
+        )
+
+        cal = calibrate_ore_profile(
+            ore_path,
+            target_T_K=ore_kw.get("target_T_K", 298.0),
+            gangue_T_K=ore_kw.get("gangue_T_K", 298.0),
+            freq_hz=ore_kw.get("freq_hz", 2.45e9),
+            moisture_wt_percent=ore_kw.get("moisture_wt_percent"),
+        )
+        cal_path = run_dir / "deposit_calibration_report.json"
+        write_calibration_diff(cal, cal_path)
+        cal_dict = cal.to_dict()
+        cal_dict["passes_calibration"] = cal.passes(max_rel_error=args.calibrate_max_rel_error)
+        cal_dict["calibrate_max_rel_error"] = args.calibrate_max_rel_error
+        manifest.evaluation["deposit_calibration"] = cal_dict
+        print(
+            f"  deposit calibration: max rel err real={cal.max_rel_error_real:.3f} "
+            f"({'PASS' if cal_dict['passes_calibration'] else 'FAIL'}) -> {cal_path}"
+        )
+        if args.calibrate_baseline:
+            import json as _json
+
+            baseline_path = Path(args.calibrate_baseline)
+            baseline = _json.loads(baseline_path.read_text())
+            changelog_path = run_dir / "deposit_calibration_changelog.json"
+            write_calibration_changelog(baseline, cal, changelog_path)
+            manifest.evaluation["deposit_calibration_changelog"] = _json.loads(changelog_path.read_text())
+            print(f"  deposit calibration changelog -> {changelog_path}")
+        if args.calibrate_deposit_enforce and not cal_dict["passes_calibration"]:
+            manifest.notes.append("deposit Bruggeman calibration failed tolerance")
+            manifest.write(run_dir / "manifest.json")
+            raise SystemExit(9)
+
+    ism_band = None
+    if args.robust in ("freq", "freq_ensemble"):
+        from mw_inv.ism_band import ism_config_from_cli
+
+        mode = args.ism_band or "full"
+        ism_band = ism_config_from_cli(mode, n_samples=args.ism_band_samples)
+
+    if (args.campaign or args.ore_envelope) and tpe_params:
+        from mw_inv.campaign import load_campaign, resolve_ore_paths
+        from mw_inv.deposit_envelope import (
+            DepositEnvelopeThresholds,
+            discover_ore_json_paths,
+            evaluate_deposit_envelope,
+            evaluate_deposit_envelope_gate,
+        )
+        from mw_inv.search import params_from_dict
+
+        if args.campaign:
+            camp = load_campaign(Path(args.campaign))
+            ore_paths = resolve_ore_paths(camp)
+            env_freq = camp.freq_hz
+            env_target_t = camp.target_T_K
+            env_gangue_t = camp.gangue_T_K
+            manifest.evaluation["campaign"] = camp.to_dict()
+        else:
+            root = Path(args.ore_envelope)
+            ore_paths = discover_ore_json_paths(root if root.is_dir() else root.parent)
+            env_freq = ore_kw.get("freq_hz", 2.45e9) if ore_kw else 2.45e9
+            env_target_t = ore_kw.get("target_T_K", 298.15) if ore_kw else 298.15
+            env_gangue_t = ore_kw.get("gangue_T_K", 298.15) if ore_kw else 298.15
+
+        best_params = params_from_dict(tpe_params, base=untuned_params)
+        env = evaluate_deposit_envelope(
+            ore_paths,
+            grid,
+            best_params,
+            freq_hz=env_freq,
+            target_T_K=env_target_t,
+            gangue_T_K=env_gangue_t,
+        )
+        env_path = run_dir / "deposit_envelope_report.json"
+        env_path.write_text(json.dumps(env.to_dict(), indent=2))
+        manifest.evaluation["deposit_envelope"] = env.to_dict()
+        env_th = DepositEnvelopeThresholds(
+            min_selectivity=args.envelope_min_selectivity,
+            min_coupling_eff=args.envelope_min_coupling,
+            max_gangue_power_fraction=args.envelope_max_gangue,
+            max_pec_loss_fraction=args.envelope_max_pec_loss,
+        )
+        env_gate = evaluate_deposit_envelope_gate(env, env_th)
+        manifest.evaluation["deposit_envelope_gate"] = env_gate.to_dict()
+        print(
+            f"  deposit envelope: {env.n_ok}/{env.n_ores} ores, "
+            f"min sel={env.min_selectivity:.3f}, min coupling={env.min_coupling_eff:.3f}, "
+            f"gate={'PASS' if env_gate.passed else 'FAIL'}"
+        )
+        if args.envelope_enforce and not env_gate.passed:
+            failed = [c.name for c in env_gate.checks if not c.passed]
+            manifest.notes.append(f"deposit envelope gate failed: {failed}")
+            manifest.write(run_dir / "manifest.json")
+            raise SystemExit(6)
+
     if args.robust != "none" and tpe_params:
         from mw_inv.search import params_from_dict
 
@@ -683,10 +1077,26 @@ def main(argv: list[str] | None = None) -> None:
             ore_profile_path=str(ore_path) if ore_path else None,
             ore_kw=ore_kw,
             n_material_scenarios=args.robust_material_scenarios,
+            ism_band=ism_band,
+            mfg_tol_frac=args.manufacturing_tol,
         )
         manifest.evaluation["robustness"] = rb
         gate = _robust_gate(rb, min_improvement=args.robust_min_improvement, floor=args.robust_floor)
         manifest.evaluation["robust_gate"] = gate
+        if args.robust_p05_floor > 0 or args.robust_p05_enforce:
+            from mw_inv.uncertainty_gate import evaluate_uncertainty_gate
+
+            ugate = evaluate_uncertainty_gate(
+                rb,
+                min_p05_selectivity=args.robust_p05_floor,
+                mode=args.robust,
+            )
+            manifest.evaluation["uncertainty_gate"] = ugate.to_dict()
+            print(f"  uncertainty gate: {'PASS' if ugate.passed else 'FAIL'}")
+            if args.robust_p05_enforce and not ugate.passed:
+                manifest.notes.append("uncertainty gate failed")
+                manifest.write(run_dir / "manifest.json")
+                raise SystemExit(8)
         if args.robust_enforce and not gate.get("passed", False):
             manifest.notes.append(f"robustness gate failed: {gate.get('detail')}")
             manifest_path = run_dir / "manifest.json"
@@ -714,7 +1124,12 @@ def main(argv: list[str] | None = None) -> None:
     # --- gate / triangulation (FDFD pre-check for export tier; openEMS refresh later) ---
     dump_dir = Path(args.openems_dump_dir) if args.openems_dump_dir else None
     top_k = args.openems_top_k if args.openems_top_k > 0 else None
-    gate_thresholds = GateThresholds(min_fdfd_improvement=args.gate_min_improvement)
+    gate_thresholds = GateThresholds(
+        min_fdfd_improvement=args.gate_min_improvement,
+        fdfd_coupling_floor=args.gate_fdfd_coupling_floor,
+        fdfd_pec_loss_fraction_max=args.gate_fdfd_pec_loss_max,
+        require_openems_for_gate=args.gate_require_openems,
+    )
     refresh = apply_triangulation_refresh(
         manifest,
         run_dir,
@@ -740,11 +1155,21 @@ def main(argv: list[str] | None = None) -> None:
         if meets_tier(assessment.tier, export_tier):
             export_dir = run_dir / "design_exports"
             write_calibration_model(export_dir / "calibration_cavity.m")
-            cases = load_search_cases(search_path, top_k=top_k)
-            export_bundles = export_all_cases(export_dir, cases, materials, grid_n=args.grid)
+            all_cases = load_search_cases(search_path, top_k=top_k)
+            from mw_inv.openems_schedule import schedule_openems_cases
+
+            scheduled_cases, sched_meta = schedule_openems_cases(
+                all_cases,
+                gate_passed=gate.passed,
+                budget=args.openems_budget if args.openems_budget > 0 else None,
+                include_untuned=args.openems_include_untuned,
+                force=args.openems_force,
+            )
+            export_bundles = export_all_cases(export_dir, scheduled_cases, materials, grid_n=args.grid)
             manifest.export_dir = str(export_dir)
             manifest.export_summary = {
                 "openems_top_k": args.openems_top_k if args.openems_top_k > 0 else None,
+                "openems_schedule": sched_meta,
                 "bundles": [
                     {
                         "label": b.label,
@@ -835,9 +1260,22 @@ def main(argv: list[str] | None = None) -> None:
             raise SystemExit(4)
 
     manifest_path = run_dir / "manifest.json"
+    assessment = finalize_promotion(manifest)
+    manifest.promotion = assessment.to_dict()
     manifest.write(manifest_path)
     print(f"  manifest: {manifest_path}")
-    print(f"  promotion tier: {assessment.tier.value}")
+    print(f"  promotion tier: {assessment.tier.value} (target: {target_tier.value})")
+
+    if tier_enforce and not meets_tier(assessment.tier, target_tier):
+        unmet = [k for k, ok in assessment.requirements.items() if not ok]
+        manifest.notes.append(
+            f"target tier {target_tier.value} not reached (achieved {assessment.tier.value})"
+        )
+        manifest.write(manifest_path)
+        print(f"  promotion: FAIL — required {target_tier.value}, achieved {assessment.tier.value}")
+        if unmet:
+            print(f"    unmet requirements: {', '.join(unmet)}")
+        raise SystemExit(7)
 
 
 if __name__ == "__main__":

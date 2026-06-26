@@ -19,7 +19,7 @@ import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 
-from mw_inv.fdfd import Grid, SolveResult, absorbed_power_density, solve, solve_scene
+from mw_inv.fdfd import Grid, SolveResult, absorbed_power_density, solve_scene
 from mw_inv.fom import FomReport, evaluate
 from mw_inv.geometry import CavityParams, Materials, Scene, build_scene, build_scene_at_T
 
@@ -46,6 +46,7 @@ class ThermalConfig:
     tol_K: float = 2.0           # max |ΔT| in charge for convergence
     relax: float = 0.45          # under-relaxation for stable ε(T) feedback
     thermal_props: PhaseThermalProps = field(default_factory=PhaseThermalProps)
+    evolve_properties: bool = True  # False = frozen RT ε,μ (E2 baseline)
 
 
 @dataclass
@@ -205,11 +206,14 @@ def coupled_steady_state(
 ) -> CoupledResult:
     """Iterate EM ↔ heat until T stabilises in the ore charge.
 
-    If ``materials`` is given, use fixed ε (gel phantoms / static tests) without ε(T) tables.
+    If ``materials`` is given and ``config.evolve_properties`` is False, use fixed ε
+    (gel phantoms / static tests). Otherwise ε(T), μ(T), and phase rules apply via
+    ``build_scene_at_T`` using *pair_label* (or ``materials.pair_label``).
     """
     cfg = config or ThermalConfig()
     params = params or CavityParams()
     freq = params.freq_hz
+    label = pair_label or (materials.pair_label if materials else "")
 
     T = np.full((grid.ny, grid.nx), cfg.T_amb_K, dtype=float)
     charge_mask = np.zeros((grid.ny, grid.nx), dtype=bool)
@@ -220,10 +224,15 @@ def coupled_steady_state(
     Q = np.zeros((grid.ny, grid.nx), dtype=float)
 
     for it in range(cfg.max_iters):
-        if materials is not None:
+        if materials is not None and not cfg.evolve_properties:
             scene = build_scene(grid, params, materials)
+        elif label and not cfg.evolve_properties:
+            T_frozen = np.full((grid.ny, grid.nx), cfg.T_amb_K, dtype=float)
+            scene = build_scene_at_T(grid, params, label, T_frozen, freq_hz=freq)
+        elif label:
+            scene = build_scene_at_T(grid, params, label, T, freq_hz=freq)
         else:
-            scene = build_scene_at_T(grid, params, pair_label, T, freq_hz=freq)
+            scene = build_scene(grid, params, materials)
         charge_mask = scene.target_mask | scene.gangue_mask
         em = solve_scene(grid, scene, source_amp=cfg.drive)
         Q = absorbed_power_density(em)
@@ -294,6 +303,7 @@ class TransientConfig:
     drive: float = 8.0
     bulk_cooling: float = 4.0e4
     thermal_props: PhaseThermalProps = field(default_factory=PhaseThermalProps)
+    evolve_properties: bool = True    # False = frozen RT ε,μ (E2 baseline comparison)
 
 
 @dataclass
@@ -334,7 +344,12 @@ def _em_power_map(
     T: np.ndarray,
     cfg: TransientConfig,
 ) -> tuple[np.ndarray, Scene]:
-    scene = build_scene_at_T(grid, params, pair_label, T, freq_hz=params.freq_hz)
+    if cfg.evolve_properties:
+        scene = build_scene_at_T(grid, params, pair_label, T, freq_hz=params.freq_hz)
+    else:
+        from mw_inv.geometry import Materials, build_scene
+
+        scene = build_scene(grid, params, Materials.from_pair(pair_label, freq_hz=params.freq_hz))
     em = solve_scene(grid, scene, source_amp=cfg.drive)
     return absorbed_power_density(em), scene
 

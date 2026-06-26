@@ -9,6 +9,10 @@ __pycache__/
 # --- Generated experiment artifacts (re-creatable via scripts/; see data/README.md) ---
 data/runs/
 data/design_exports/
+data/metal_model_export/
+# Large vendored third-party downloads — reproduce via
+# scripts/fetch_reputable_touchstone_sources.py (kept out of git history to stay lean).
+data/third_party/
 
 # Top-level data outputs (figures, summaries, scene dumps).
 data/*.npz

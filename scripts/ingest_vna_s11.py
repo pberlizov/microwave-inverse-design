@@ -14,20 +14,20 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from mw_inv.vna_s11 import load_s1p, summary_s11_metrics  # noqa: E402
+from mw_inv.vna_s11 import load_touchstone_s11, summary_s11_metrics  # noqa: E402
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--unloaded", required=True, help="Touchstone .s1p (empty cavity)")
-    ap.add_argument("--loaded", default=None, help="Touchstone .s1p (with charge)")
+    ap.add_argument("--unloaded", required=True, help="Touchstone .sNp (empty/unloaded)")
+    ap.add_argument("--loaded", default=None, help="Touchstone .sNp (with charge)")
     ap.add_argument("--out", default="data/vna_s11_report.json")
     ap.add_argument("--freq", type=float, default=2.45e9)
     ap.add_argument("--band-lo", type=float, default=None)
     ap.add_argument("--band-hi", type=float, default=None)
     args = ap.parse_args()
 
-    unloaded = load_s1p(args.unloaded)
+    unloaded = load_touchstone_s11(args.unloaded)
     payload = {
         "unloaded": summary_s11_metrics(
             unloaded,
@@ -38,7 +38,7 @@ def main() -> None:
         "loaded": None,
     }
     if args.loaded:
-        loaded = load_s1p(args.loaded)
+        loaded = load_touchstone_s11(args.loaded)
         payload["loaded"] = summary_s11_metrics(
             loaded,
             freq_hz=args.freq,
@@ -58,4 +58,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

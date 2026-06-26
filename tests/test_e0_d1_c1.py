@@ -15,7 +15,6 @@ from mw_inv.geometry import CavityParams  # noqa: E402
 from mw_inv.ensemble import evaluate_ensemble, evaluate_material_robust  # noqa: E402
 from mw_inv.ore_profiles import (  # noqa: E402
     load_ore_profile,
-    psd_radii_frac,
     sample_psd_radii_m,
 )
 from mw_inv.phantom_calibration import evaluate_bench_gate  # noqa: E402

@@ -10,8 +10,9 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from mw_inv.design_export import DesignCase, fdfd_selectivity, load_search_cases
-from mw_inv.fdfd import Grid
+from mw_inv.design_export import DesignCase, load_search_cases
+from mw_inv.fdfd import Grid, solve_scene
+from mw_inv.fom import evaluate
 from mw_inv.geometry import Materials, build_scene
 from mw_inv.meep_3d import compare_fdfd_meep_3d
 from mw_inv.meep_compare import compare_fdfd_meep, meep_available
@@ -22,6 +23,8 @@ from mw_inv.openems_postprocess import h5py_available, ingest_openems_case
 class SolverRow:
     label: str
     fdfd_selectivity: float
+    fdfd_coupling_eff: float | None = None
+    fdfd_pec_loss_fraction: float | None = None
     meep_2d_selectivity: float | None = None
     meep_3d_primitive_selectivity: float | None = None
     openems_selectivity: float | None = None
@@ -36,6 +39,8 @@ class SolverRow:
         return {
             "label": self.label,
             "fdfd_selectivity": self.fdfd_selectivity,
+            "fdfd_coupling_eff": self.fdfd_coupling_eff,
+            "fdfd_pec_loss_fraction": self.fdfd_pec_loss_fraction,
             "meep_2d_selectivity": self.meep_2d_selectivity,
             "meep_3d_primitive_selectivity": self.meep_3d_primitive_selectivity,
             "openems_selectivity": self.openems_selectivity,
@@ -64,11 +69,15 @@ def triangulate_case(
 ) -> SolverRow:
     """FDFD reference + optional MEEP / openEMS for one design."""
     scene = build_scene(grid, case.params, materials)
-    fdfd_sel = fdfd_selectivity(grid, case.params, materials)
+    res = solve_scene(grid, scene)
+    fom = evaluate(res, scene)
+    fdfd_sel = float(fom.selectivity)
 
     row = SolverRow(
         label=case.label,
         fdfd_selectivity=fdfd_sel,
+        fdfd_coupling_eff=float(fom.coupling_eff),
+        fdfd_pec_loss_fraction=float(fom.pec_loss_fraction),
         params={
             k: getattr(case.params, k)
             for k in case.params.__dataclass_fields__

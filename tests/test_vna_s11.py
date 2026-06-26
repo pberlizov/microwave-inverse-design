@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from mw_inv.vna_s11 import load_s1p, s11_at_freq, summary_s11_metrics  # noqa: E402
+from mw_inv.vna_s11 import load_s1p, load_touchstone_s11, s11_at_freq, summary_s11_metrics  # noqa: E402
 
 
 def test_load_s1p_ri_parses_complex(tmp_path: Path) -> None:
@@ -55,3 +55,19 @@ def test_summary_s11_metrics_band_min(tmp_path: Path) -> None:
     assert abs(rep["s11_mag"] - 0.20) < 1e-12
     assert abs(rep["min_s11_mag_in_band"] - 0.20) < 1e-12
 
+
+def test_load_touchstone_s2p_multiline_records(tmp_path: Path) -> None:
+    p = tmp_path / "t.s2p"
+    # 2-port = 1 + 8 numbers per frequency (freq + 4 complex pairs). Split across lines.
+    p.write_text(
+        "\n".join([
+            "# GHZ S RI R 50",
+            "2.45  0.10  0.00  0 0  0 0  0 0",
+            "2.50  0.20  0.00",
+            "0 0  0 0  0 0",
+        ])
+    )
+    tr = load_touchstone_s11(p)
+    assert tr.freq_hz.size == 2
+    assert abs(tr.s11[0] - complex(0.10, 0.0)) < 1e-12
+    assert abs(tr.s11[1] - complex(0.20, 0.0)) < 1e-12

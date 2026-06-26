@@ -1,0 +1,21 @@
+{
+  "label": "forster_fair_hematite",
+  "source": "forster_phd_2023",
+  "heating_class": "II_fair",
+  "hmap_wt_percent": 4.5,
+  "fractions": {
+    "quartz": 0.45,
+    "hematite": 0.045
+  },
+  "gangue_mineral": "quartz",
+  "texture": {
+    "class": "disseminated",
+    "mean_grain_radius_m": 0.002
+  },
+  "measured_dielectrics": {
+    "path": "../../measured_dielectrics/forster_hmap_minerals_v1.json",
+    "target_phase": "hematite",
+    "gangue_phase": "quartz",
+    "default_moisture_wt_percent": 0.0
+  }
+}

@@ -6,12 +6,11 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from mw_inv.fdfd import Grid  # noqa: E402
-from mw_inv.geometry import CavityParams, Materials  # noqa: E402
+from mw_inv.geometry import Materials  # noqa: E402
 from mw_inv.search import (  # noqa: E402
     MultiTrial,
     optuna_multi_search,

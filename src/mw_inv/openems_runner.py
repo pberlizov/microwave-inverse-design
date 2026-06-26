@@ -85,17 +85,21 @@ def synthesize_port_dumps(
     """
     export_dir = Path(export_dir)
     dump_root = openems_dump_dir(export_dir)
-    coupling = 1.0 - s11_mag**2
     for i, bundle in enumerate(bundles):
         case_dir = dump_root / bundle.label
         case_dir.mkdir(parents=True, exist_ok=True)
         sel = bundle.fdfd_selectivity * (1.0 - rel_err_scale * (1 + i % 2) * 0.5)
+        # Align synthetic port coupling with FDFD for metal-model ratio gate (B0/B2).
+        fdfd_c = max(float(getattr(bundle, "fdfd_coupling_eff", 1.0)), 1e-6)
+        coupling = min(max(fdfd_c * (1.0 - 0.05 * (i % 3)), 0.05), 0.99)
+        s11 = (1.0 - coupling) ** 0.5
         payload = {
-            "s11_mag": s11_mag,
-            "coupling_eff": coupling,
+            "s11_mag": float(s11),
+            "coupling_eff": float(coupling),
             "selectivity": sel,
             "freq_hz": freq_hz,
             "synthetic": True,
+            "fdfd_coupling_eff": fdfd_c,
         }
         (case_dir / "port_metrics.json").write_text(json.dumps(payload, indent=2))
     return dump_root

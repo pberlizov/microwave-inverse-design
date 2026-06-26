@@ -1,0 +1,22 @@
+{
+  "label": "forster_excellent_bornite",
+  "source": "forster_phd_2023",
+  "heating_class": "IV_excellent",
+  "hmap_wt_percent": 35.0,
+  "fractions": {
+    "quartz": 0.18,
+    "bornite": 0.3,
+    "chalcopyrite": 0.05
+  },
+  "gangue_mineral": "quartz",
+  "texture": {
+    "class": "disseminated",
+    "mean_grain_radius_m": 0.002
+  },
+  "measured_dielectrics": {
+    "path": "../../measured_dielectrics/forster_hmap_minerals_v1.json",
+    "target_phase": "bornite",
+    "gangue_phase": "quartz",
+    "default_moisture_wt_percent": 0.0
+  }
+}

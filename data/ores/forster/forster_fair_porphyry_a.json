@@ -1,0 +1,23 @@
+{
+  "label": "forster_fair_porphyry_a",
+  "source": "forster_phd_2023",
+  "heating_class": "II_fair",
+  "hmap_wt_percent": 3.8,
+  "fractions": {
+    "feldspar": 0.45,
+    "quartz": 0.35,
+    "pyrite": 0.03,
+    "chalcopyrite": 0.008
+  },
+  "gangue_mineral": "feldspar",
+  "texture": {
+    "class": "disseminated",
+    "mean_grain_radius_m": 0.002
+  },
+  "measured_dielectrics": {
+    "path": "../../measured_dielectrics/forster_hmap_minerals_v1.json",
+    "target_phase": "chalcopyrite",
+    "gangue_phase": "feldspar",
+    "default_moisture_wt_percent": 0.0
+  }
+}

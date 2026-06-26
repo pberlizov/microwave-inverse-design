@@ -1,0 +1,46 @@
+{
+  "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+  "citation": "https://zenodo.org/records/14203353",
+  "samples": [
+    {
+      "label": "lct_spodumene_ore",
+      "description": "Li-C-T spodumene pegmatite ore — high quartz-feldspar matrix",
+      "target_phase": "spodumene_ore",
+      "gangue_phase": "wall_rock_granite",
+      "points": [
+        {"temp_K": 298.15, "freq_hz": 2450000000, "target_eps_real": 6.2, "target_eps_imag": 0.08, "gangue_eps_real": 5.4, "gangue_eps_imag": 0.04},
+        {"temp_K": 373.15, "freq_hz": 2450000000, "target_eps_real": 6.3, "target_eps_imag": 0.09, "gangue_eps_real": 5.5, "gangue_eps_imag": 0.04},
+        {"temp_K": 298.15, "freq_hz": 915000000, "target_eps_real": 6.0, "target_eps_imag": 0.06, "gangue_eps_real": 5.3, "gangue_eps_imag": 0.03}
+      ]
+    },
+    {
+      "label": "nyf_rare_earth_pegmatite",
+      "description": "NYF REE pegmatite — moderate loss wall rock",
+      "target_phase": "ree_pegmatite",
+      "gangue_phase": "mica_schist_wall",
+      "points": [
+        {"temp_K": 298.15, "freq_hz": 2450000000, "target_eps_real": 7.8, "target_eps_imag": 0.12, "gangue_eps_real": 6.5, "gangue_eps_imag": 0.06},
+        {"temp_K": 298.15, "freq_hz": 915000000, "target_eps_real": 7.5, "target_eps_imag": 0.10, "gangue_eps_real": 6.3, "gangue_eps_imag": 0.05}
+      ]
+    },
+    {
+      "label": "petalite_pegmatite",
+      "description": "Petalite-dominated pegmatite body",
+      "target_phase": "petalite_ore",
+      "gangue_phase": "albite_wall",
+      "points": [
+        {"temp_K": 298.15, "freq_hz": 2450000000, "target_eps_real": 5.8, "target_eps_imag": 0.05, "gangue_eps_real": 5.0, "gangue_eps_imag": 0.03}
+      ]
+    },
+    {
+      "label": "beryl_pegmatite",
+      "description": "Beryl-columbite pegmatite — higher ε′ ore zone",
+      "target_phase": "beryl_ore",
+      "gangue_phase": "quartz_feldspar_wall",
+      "points": [
+        {"temp_K": 298.15, "freq_hz": 2450000000, "target_eps_real": 6.9, "target_eps_imag": 0.07, "gangue_eps_real": 5.6, "gangue_eps_imag": 0.04},
+        {"temp_K": 473.15, "freq_hz": 2450000000, "target_eps_real": 7.1, "target_eps_imag": 0.09, "gangue_eps_real": 5.7, "gangue_eps_imag": 0.05}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,161 @@
+{
+  "dataset_id": "europeg_pegmatite_v1",
+  "version": "petrodb-subset",
+  "description": "EuroPeg pegmatite ore vs wall-rock \u03b5 anchors (representative subset).",
+  "phases": [
+    {
+      "label": "target",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000,
+          "eps_real": 6.2,
+          "eps_imag": 0.08,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "lct_spodumene_ore target (spodumene_ore)"
+        },
+        {
+          "temp_K": 373.15,
+          "freq_hz": 2450000000,
+          "eps_real": 6.3,
+          "eps_imag": 0.09,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "lct_spodumene_ore target (spodumene_ore)"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 915000000,
+          "eps_real": 6.0,
+          "eps_imag": 0.06,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "lct_spodumene_ore target (spodumene_ore)"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000,
+          "eps_real": 7.8,
+          "eps_imag": 0.12,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "nyf_rare_earth_pegmatite target (ree_pegmatite)"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 915000000,
+          "eps_real": 7.5,
+          "eps_imag": 0.1,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "nyf_rare_earth_pegmatite target (ree_pegmatite)"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000,
+          "eps_real": 5.8,
+          "eps_imag": 0.05,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "petalite_pegmatite target (petalite_ore)"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000,
+          "eps_real": 6.9,
+          "eps_imag": 0.07,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "beryl_pegmatite target (beryl_ore)"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 2450000000,
+          "eps_real": 7.1,
+          "eps_imag": 0.09,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "beryl_pegmatite target (beryl_ore)"
+        }
+      ]
+    },
+    {
+      "label": "gangue",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000,
+          "eps_real": 5.4,
+          "eps_imag": 0.04,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "lct_spodumene_ore wall (wall_rock_granite)"
+        },
+        {
+          "temp_K": 373.15,
+          "freq_hz": 2450000000,
+          "eps_real": 5.5,
+          "eps_imag": 0.04,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "lct_spodumene_ore wall (wall_rock_granite)"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 915000000,
+          "eps_real": 5.3,
+          "eps_imag": 0.03,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "lct_spodumene_ore wall (wall_rock_granite)"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000,
+          "eps_real": 6.5,
+          "eps_imag": 0.06,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "nyf_rare_earth_pegmatite wall (mica_schist_wall)"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 915000000,
+          "eps_real": 6.3,
+          "eps_imag": 0.05,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "nyf_rare_earth_pegmatite wall (mica_schist_wall)"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000,
+          "eps_real": 5.0,
+          "eps_imag": 0.03,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "petalite_pegmatite wall (albite_wall)"
+        },
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000,
+          "eps_real": 5.6,
+          "eps_imag": 0.04,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "beryl_pegmatite wall (quartz_feldspar_wall)"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 2450000000,
+          "eps_real": 5.7,
+          "eps_imag": 0.05,
+          "moisture_wt_percent": 0.0,
+          "source": "EuroPeg_PetroDB v3 representative LCT/NYF pegmatite subset (literature anchors)",
+          "notes": "beryl_pegmatite wall (quartz_feldspar_wall)"
+        }
+      ]
+    }
+  ]
+}

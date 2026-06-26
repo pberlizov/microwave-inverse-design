@@ -22,7 +22,7 @@ EM_OBJECTIVES = ("em_selectivity", "em_contrast", "p_target")
 THERMAL_OBJECTIVES = ("delta_T", "heat_selectivity", "em_selectivity")
 STRESS_OBJECTIVES = ("stress_selectivity", "mean_interface_stress", "stress_score")
 
-COMPOSITE_PRESETS = ("composite:liberation", "composite:thermal_em")
+COMPOSITE_PRESETS = ("composite:liberation", "composite:thermal_em", "composite:industrial")
 
 __all__ = [
     "COMPOSITE_PRESETS",
@@ -47,6 +47,9 @@ class FomWeights:
     heat_selectivity: float = 0.0
     delta_T_K: float = 0.0
     stress_score: float = 0.0
+    coupling_eff: float = 0.0
+    target_power_fraction: float = 0.0
+    gangue_budget: float = 0.0
 
 
 LIBERATION_WEIGHTS = FomWeights(
@@ -60,6 +63,13 @@ THERMAL_EM_WEIGHTS = FomWeights(
     em_selectivity=0.40,
     heat_selectivity=0.30,
     delta_T_K=0.30,
+)
+
+INDUSTRIAL_WEIGHTS = FomWeights(
+    em_selectivity=0.30,
+    coupling_eff=0.35,
+    target_power_fraction=0.20,
+    gangue_budget=0.15,
 )
 
 
@@ -226,6 +236,17 @@ def preset_config(
             thermal_cfg=thermal_cfg,
             check_arcing=check_arcing,
         )
+    if preset == "composite:industrial":
+        return EvaluationConfig(
+            pair_label=label,
+            materials=materials,
+            mode="em",
+            objective="composite",
+            composite_weights=INDUSTRIAL_WEIGHTS,
+            legacy=legacy,
+            thermal_cfg=thermal_cfg,
+            check_arcing=check_arcing,
+        )
     raise ValueError(
         f"unknown preset {preset!r}; use em, thermal:*, stress:*, or {COMPOSITE_PRESETS}"
     )
@@ -256,6 +277,8 @@ def _normalize_foms(report: DesignReport) -> dict[str, float]:
         f["mean_interface_stress"] = float(
             min(max(report.mean_interface_stress_Pa, 0.0) / 1.0e8, 1.0)
         )
+    if report.coupling_eff is not None:
+        f["coupling_eff"] = float(min(max(report.coupling_eff, 0.0), 1.0))
     return f
 
 
@@ -267,6 +290,9 @@ def _composite_score(foms: dict[str, float], weights: FomWeights) -> float:
         ("heat_selectivity", weights.heat_selectivity),
         ("delta_T_K", weights.delta_T_K),
         ("stress_score", weights.stress_score),
+        ("coupling_eff", weights.coupling_eff),
+        ("target_power_fraction", weights.target_power_fraction),
+        ("gangue_budget", weights.gangue_budget),
     ):
         if w <= 0.0:
             continue
@@ -379,7 +405,26 @@ def evaluate_design(
         pair_label=pair_label,
         preset=preset,
     )
+    from mw_inv.industrial_metrics import IndustrialMetrics
+    from mw_inv.ore_profiles import charge_volume_m3
+
+    vol = charge_volume_m3(params, Lx=grid.Lx, Ly=grid.Ly)
+    ind = IndustrialMetrics.from_fom(fom, charge_volume_m3=vol)
     report.foms = _normalize_foms(report)
+    report.foms.update(ind.to_dict())
+    report.foms["gangue_budget"] = 1.0 - ind.gangue_power_fraction
+
+    from mw_inv.ensemble import evaluate_particle_power
+
+    try:
+        pp = evaluate_particle_power(grid, params, materials)
+        report.foms["min_particle_fraction"] = pp.min_particle_fraction
+        report.foms["max_particle_fraction"] = pp.max_particle_fraction
+        report.foms["p05_particle_fraction"] = pp.p05_particle_fraction
+        report.foms["p95_particle_fraction"] = pp.p95_particle_fraction
+        report.foms["n_particles"] = float(pp.n_particles)
+    except (ValueError, TypeError):
+        pass
 
     obj_key, score = _primary_score(report, config)
 

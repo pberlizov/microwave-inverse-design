@@ -1,0 +1,319 @@
+{
+  "dataset_id": "hartlieb_bedrock_v1",
+  "version": "2016-table2",
+  "description": "Basalt, granite, sandstone \u03b5(T) @ 2450 MHz (Hartlieb et al. 2016).",
+  "phases": [
+    {
+      "label": "basalt",
+      "points": [
+        {
+          "temp_K": 293.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 7.67,
+          "eps_imag": 0.27,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "basalt @ 2.450 GHz"
+        },
+        {
+          "temp_K": 373.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 7.89,
+          "eps_imag": 0.332,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "basalt @ 2.450 GHz"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 7.77,
+          "eps_imag": 0.261,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "basalt @ 2.450 GHz"
+        },
+        {
+          "temp_K": 573.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 7.53,
+          "eps_imag": 0.155,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "basalt @ 2.450 GHz"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 7.47,
+          "eps_imag": 0.127,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "basalt @ 2.450 GHz"
+        },
+        {
+          "temp_K": 773.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 7.65,
+          "eps_imag": 0.301,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "basalt @ 2.450 GHz"
+        },
+        {
+          "temp_K": 873.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 8.49,
+          "eps_imag": 0.774,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "basalt @ 2.450 GHz"
+        },
+        {
+          "temp_K": 973.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 8.07,
+          "eps_imag": 0.555,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "basalt @ 2.450 GHz"
+        },
+        {
+          "temp_K": 1073.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 7.99,
+          "eps_imag": 0.619,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "basalt @ 2.450 GHz"
+        },
+        {
+          "temp_K": 1173.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 8.35,
+          "eps_imag": 0.989,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "basalt @ 2.450 GHz"
+        },
+        {
+          "temp_K": 1273.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 8.97,
+          "eps_imag": 1.306,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "basalt @ 2.450 GHz"
+        }
+      ]
+    },
+    {
+      "label": "granite",
+      "points": [
+        {
+          "temp_K": 293.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 5.45,
+          "eps_imag": 0.038,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "granite @ 2.450 GHz"
+        },
+        {
+          "temp_K": 373.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 5.44,
+          "eps_imag": 0.033,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "granite @ 2.450 GHz"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 5.45,
+          "eps_imag": 0.037,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "granite @ 2.450 GHz"
+        },
+        {
+          "temp_K": 573.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 5.45,
+          "eps_imag": 0.043,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "granite @ 2.450 GHz"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 5.45,
+          "eps_imag": 0.052,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "granite @ 2.450 GHz"
+        },
+        {
+          "temp_K": 773.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 5.47,
+          "eps_imag": 0.076,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "granite @ 2.450 GHz"
+        },
+        {
+          "temp_K": 873.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 5.45,
+          "eps_imag": 0.118,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "granite @ 2.450 GHz"
+        },
+        {
+          "temp_K": 973.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 5.48,
+          "eps_imag": 0.21,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "granite @ 2.450 GHz"
+        },
+        {
+          "temp_K": 1073.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 5.37,
+          "eps_imag": 0.175,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "granite @ 2.450 GHz"
+        },
+        {
+          "temp_K": 1173.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 5.08,
+          "eps_imag": 0.135,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "granite @ 2.450 GHz"
+        },
+        {
+          "temp_K": 1273.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 5.22,
+          "eps_imag": 0.319,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "granite @ 2.450 GHz"
+        }
+      ]
+    },
+    {
+      "label": "sandstone",
+      "points": [
+        {
+          "temp_K": 293.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.93,
+          "eps_imag": 0.081,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "sandstone @ 2.450 GHz"
+        },
+        {
+          "temp_K": 373.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.85,
+          "eps_imag": 0.042,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "sandstone @ 2.450 GHz"
+        },
+        {
+          "temp_K": 473.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.83,
+          "eps_imag": 0.038,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "sandstone @ 2.450 GHz"
+        },
+        {
+          "temp_K": 573.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.84,
+          "eps_imag": 0.047,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "sandstone @ 2.450 GHz"
+        },
+        {
+          "temp_K": 673.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.83,
+          "eps_imag": 0.045,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "sandstone @ 2.450 GHz"
+        },
+        {
+          "temp_K": 773.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.81,
+          "eps_imag": 0.056,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "sandstone @ 2.450 GHz"
+        },
+        {
+          "temp_K": 873.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.74,
+          "eps_imag": 0.073,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "sandstone @ 2.450 GHz"
+        },
+        {
+          "temp_K": 973.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.76,
+          "eps_imag": 0.132,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "sandstone @ 2.450 GHz"
+        },
+        {
+          "temp_K": 1073.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.86,
+          "eps_imag": 0.205,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "sandstone @ 2.450 GHz"
+        },
+        {
+          "temp_K": 1173.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.97,
+          "eps_imag": 0.244,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "sandstone @ 2.450 GHz"
+        },
+        {
+          "temp_K": 1273.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 5.29,
+          "eps_imag": 0.439,
+          "moisture_wt_percent": 0.0,
+          "source": "Hartlieb et al. 2016 Minerals Eng. Table 2 @ 2450 MHz",
+          "notes": "sandstone @ 2.450 GHz"
+        }
+      ]
+    }
+  ]
+}

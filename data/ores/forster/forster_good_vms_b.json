@@ -1,0 +1,23 @@
+{
+  "label": "forster_good_vms_b",
+  "source": "forster_phd_2023",
+  "heating_class": "III_good",
+  "hmap_wt_percent": 10.5,
+  "fractions": {
+    "feldspar": 0.35,
+    "pyrite": 0.085,
+    "chalcopyrite": 0.02,
+    "galena": 0.01
+  },
+  "gangue_mineral": "feldspar",
+  "texture": {
+    "class": "disseminated",
+    "mean_grain_radius_m": 0.002
+  },
+  "measured_dielectrics": {
+    "path": "../../measured_dielectrics/forster_hmap_minerals_v1.json",
+    "target_phase": "pyrite",
+    "gangue_phase": "feldspar",
+    "default_moisture_wt_percent": 0.0
+  }
+}

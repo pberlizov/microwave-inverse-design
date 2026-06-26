@@ -1,0 +1,22 @@
+{
+  "label": "forster_good_nickel_a",
+  "source": "forster_phd_2023",
+  "heating_class": "III_good",
+  "hmap_wt_percent": 12.0,
+  "fractions": {
+    "serpentine": 0.4,
+    "pentlandite": 0.08,
+    "pyrrhotite": 0.04
+  },
+  "gangue_mineral": "serpentine",
+  "texture": {
+    "class": "disseminated",
+    "mean_grain_radius_m": 0.002
+  },
+  "measured_dielectrics": {
+    "path": "../../measured_dielectrics/forster_hmap_minerals_v1.json",
+    "target_phase": "pentlandite",
+    "gangue_phase": "serpentine",
+    "default_moisture_wt_percent": 0.0
+  }
+}

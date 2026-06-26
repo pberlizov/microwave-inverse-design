@@ -1,0 +1,147 @@
+{
+  "dataset_id": "computed_dielectric_subset_v1",
+  "version": "mp-zenodo-subset",
+  "description": "Static \u03b5 (no loss); use for mineral ranking only \u2014 not ISM loss calibration.",
+  "phases": [
+    {
+      "label": "quartz_mp",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 4.64,
+          "eps_imag": 0.01,
+          "moisture_wt_percent": 0.0,
+          "source": "MP DFPT \u03b1-quartz",
+          "notes": "SiO2 static DFPT (loss placeholder)"
+        }
+      ]
+    },
+    {
+      "label": "calcite_mp",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 8.74,
+          "eps_imag": 0.01,
+          "moisture_wt_percent": 0.0,
+          "source": "MP DFPT calcite",
+          "notes": "CaCO3 static DFPT (loss placeholder)"
+        }
+      ]
+    },
+    {
+      "label": "pyrite_mp",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 9.21,
+          "eps_imag": 0.01,
+          "moisture_wt_percent": 0.0,
+          "source": "MP DFPT pyrite",
+          "notes": "FeS2 static DFPT (loss placeholder)"
+        }
+      ]
+    },
+    {
+      "label": "magnetite_mp",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 32.8,
+          "eps_imag": 0.01,
+          "moisture_wt_percent": 0.0,
+          "source": "MP DFPT magnetite (static bulk)",
+          "notes": "Fe3O4 static DFPT (loss placeholder)"
+        }
+      ]
+    },
+    {
+      "label": "chalcopyrite_mp",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 10.4,
+          "eps_imag": 0.01,
+          "moisture_wt_percent": 0.0,
+          "source": "MP DFPT chalcopyrite",
+          "notes": "CuFeS2 static DFPT (loss placeholder)"
+        }
+      ]
+    },
+    {
+      "label": "hematite_mp",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 12.5,
+          "eps_imag": 0.01,
+          "moisture_wt_percent": 0.0,
+          "source": "MP DFPT hematite",
+          "notes": "Fe2O3 static DFPT (loss placeholder)"
+        }
+      ]
+    },
+    {
+      "label": "galena_mp",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 17.8,
+          "eps_imag": 0.01,
+          "moisture_wt_percent": 0.0,
+          "source": "MP DFPT galena (static)",
+          "notes": "PbS static DFPT (loss placeholder)"
+        }
+      ]
+    },
+    {
+      "label": "sphalerite_mp",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 8.92,
+          "eps_imag": 0.01,
+          "moisture_wt_percent": 0.0,
+          "source": "MP DFPT sphalerite",
+          "notes": "ZnS static DFPT (loss placeholder)"
+        }
+      ]
+    },
+    {
+      "label": "dolomite_mp",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 7.35,
+          "eps_imag": 0.01,
+          "moisture_wt_percent": 0.0,
+          "source": "MP DFPT dolomite",
+          "notes": "CaMg(CO3)2 static DFPT (loss placeholder)"
+        }
+      ]
+    },
+    {
+      "label": "molybdenite_mp",
+      "points": [
+        {
+          "temp_K": 298.15,
+          "freq_hz": 2450000000.0,
+          "eps_real": 6.8,
+          "eps_imag": 0.01,
+          "moisture_wt_percent": 0.0,
+          "source": "MP DFPT 2H-MoS2 in-plane avg",
+          "notes": "MoS2 static DFPT (loss placeholder)"
+        }
+      ]
+    }
+  ]
+}

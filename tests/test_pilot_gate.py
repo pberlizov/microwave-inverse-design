@@ -43,7 +43,7 @@ def test_pilot_gate_fails_without_robust_or_safety() -> None:
         "robust_gate": {"passed": False},
         "tpe_best": {"coupling_eff": 0.05},
     }
-    report = evaluate_pilot_gate({"tpe_best": {}}, {"search_mode": "legacy"})
+    report = evaluate_pilot_gate(evaluation, {"search_mode": "legacy"})
     assert not report.passed
 
 

@@ -1,0 +1,10 @@
+{
+  "campaign_id": "forster_literature_v1",
+  "description": "Forster PhD-style 42-ore heating-class envelope from literature ingest",
+  "ore_globs": ["ores/forster/forster_*.json"],
+  "measured_dielectrics": "measured_dielectrics/forster_hmap_minerals_v1.json",
+  "target_T_K": 298.15,
+  "gangue_T_K": 298.15,
+  "freq_hz": 2450000000.0,
+  "created": "2026-06"
+}

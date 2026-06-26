@@ -1,7 +1,7 @@
-"""VNA S11 ingestion (Touchstone .s1p) for bench calibration.
+"""VNA S11 ingestion (Touchstone .sNp) for bench calibration.
 
 Stage-A bench RF asks: does the built applicator/port remain matched when the charge is
-loaded? This module parses Touchstone v1 ``.s1p`` files and extracts |S11| metrics.
+loaded? This module parses Touchstone v1 ``.sNp`` files and extracts |S11| metrics.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ import numpy as np
 __all__ = [
     "S1PTrace",
     "load_s1p",
+    "load_touchstone_s11",
     "s11_at_freq",
     "summary_s11_metrics",
 ]
@@ -73,7 +74,30 @@ def _parse_header(line: str) -> tuple[float, str, float]:
 
 def load_s1p(path: Path | str) -> S1PTrace:
     """Parse a Touchstone v1 ``.s1p`` file into frequency and complex S11 arrays."""
+    return load_touchstone_s11(path)
+
+
+def _nports_from_suffix(path: Path) -> int:
+    suf = path.suffix.lower()
+    if suf.startswith(".s") and suf.endswith("p"):
+        mid = suf[2:-1]
+        if mid.isdigit():
+            n = int(mid)
+            if 1 <= n <= 99:
+                return n
+    raise ValueError(f"could not infer n-ports from suffix {path.suffix!r} (expected .s1p/.s2p/...)")
+
+
+def load_touchstone_s11(path: Path | str) -> S1PTrace:
+    """Parse Touchstone v1 ``.sNp`` and return only the S11 trace.
+
+    Supports multi-line records by buffering numeric tokens until one full frequency
+    record (1 + 2*N*N values) is available.
+    """
     path = Path(path)
+    n_ports = _nports_from_suffix(path)
+    n_vals = 1 + 2 * n_ports * n_ports
+
     text = path.read_text(errors="replace").splitlines()
     scale = 1e9  # default GHz if header absent
     fmt = "MA"   # common default if header absent
@@ -81,36 +105,48 @@ def load_s1p(path: Path | str) -> S1PTrace:
 
     freqs: list[float] = []
     s11: list[complex] = []
+    buf: list[float] = []
+
+    def to_complex(a: float, b: float) -> complex:
+        if fmt == "RI":
+            return complex(a, b)
+        if fmt == "MA":
+            ang = math.radians(b)
+            return complex(a * math.cos(ang), a * math.sin(ang))
+        mag = 10 ** (a / 20.0)  # DB
+        ang = math.radians(b)
+        return complex(mag * math.cos(ang), mag * math.sin(ang))
 
     for raw in text:
         line = raw.strip()
-        if not line or line.startswith("!"):
+        if not line:
+            continue
+        if line.startswith("!"):
             continue
         if line.startswith("#"):
             scale, fmt, z0 = _parse_header(line)
             continue
-        # Data row: freq  a  b
+        # Strip inline comments after '!' if present.
+        if "!" in line:
+            line = line.split("!", 1)[0].strip()
+        if not line:
+            continue
         parts = line.split()
-        if len(parts) < 3:
-            continue
-        try:
-            f = float(parts[0]) * scale
-            a = float(parts[1])
-            b = float(parts[2])
-        except ValueError:
-            continue
-        if fmt == "RI":
-            v = complex(a, b)
-        elif fmt == "MA":
-            mag = a
-            ang = math.radians(b)
-            v = complex(mag * math.cos(ang), mag * math.sin(ang))
-        else:  # DB
-            mag = 10 ** (a / 20.0)
-            ang = math.radians(b)
-            v = complex(mag * math.cos(ang), mag * math.sin(ang))
-        freqs.append(f)
-        s11.append(v)
+        for tok in parts:
+            try:
+                buf.append(float(tok))
+            except ValueError:
+                # ignore non-numeric garbage lines
+                buf = []
+                break
+
+        while len(buf) >= n_vals:
+            rec = buf[:n_vals]
+            buf = buf[n_vals:]
+            f = rec[0] * scale
+            a, b = rec[1], rec[2]  # S11 is first pair
+            freqs.append(float(f))
+            s11.append(to_complex(float(a), float(b)))
 
     if not freqs:
         raise ValueError(f"no S11 points parsed from {path}")
@@ -178,4 +214,3 @@ def summary_s11_metrics(
         out["min_s11_mag_in_band"] = float(mag_min)
         out["min_s11_freq_hz_in_band"] = float(f_min)
     return out
-
