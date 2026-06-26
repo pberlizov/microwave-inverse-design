@@ -133,9 +133,9 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     t0 = time.time()
-    rnd = random_search(grid, args.trials, seed=args.seed, materials=materials, legacy=legacy)
+    rnd = random_search(grid, args.trials, seed=args.seed, base=base_params, materials=materials, legacy=legacy)
     t1 = time.time()
-    tpe = optuna_search(grid, args.trials, seed=args.seed, materials=materials, legacy=legacy)
+    tpe = optuna_search(grid, args.trials, seed=args.seed, base=base_params, materials=materials, legacy=legacy)
     t2 = time.time()
 
     rnd_best = best(rnd)
@@ -188,4 +188,3 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
-

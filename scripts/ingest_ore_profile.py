@@ -51,6 +51,11 @@ def main() -> None:
     print(f"  dominant HMAP    : {summary['dominant_hmap']}")
     print(f"  inferred gangue  : {summary['inferred_gangue']}")
     print(f"  suggested pair   : {summary['suggested_pair']}")
+    if summary.get("materials_mode") == "measured":
+        md = summary.get("measured_dielectrics") or {}
+        print(f"  materials mode   : measured ({md.get('path')})")
+    else:
+        print("  materials mode   : bruggeman (HMAP mix + gangue mineral)")
     print(f"  loss contrast    : {summary['loss_contrast']:.1f}")
     print(f"  ε″ target/gangue : {mats.target.imag:.3f} / {mats.gangue.imag:.4f}")
     print(f"  grain radius frac: {params.inclusion_radius_frac:.3f}")

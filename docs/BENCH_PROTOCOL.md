@@ -31,6 +31,7 @@ Drift vs Gabriel anchors >20% on ε″ should trigger recipe update before compa
 ```bash
 python3 scripts/run_validation_gate.py --materials pyrite_in_calcite
 python3 scripts/export_design.py --phantom saline_2_vs_0.5 --trials 16
+python3 scripts/run_pipeline.py --materials pyrite_in_calcite --trials 12 --phantom saline_2_vs_0.5 --measured-eps data/measured_eps.json --lab-measurements data/lab_measurements.json --bench-study
 ```
 
 Build cavity using `optimized_params` from manifest JSON (feed_wall, stub_depth_frac, plate_*).

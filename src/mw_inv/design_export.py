@@ -24,9 +24,16 @@ class DesignCase:
     source: str  # e.g. "search_summary:tpe_best"
 
 
-def cases_from_search_summary(data: dict) -> list[DesignCase]:
-    """Untuned baseline + random/TPE bests from ``run_search.py`` output."""
+def cases_from_search_summary(data: dict, *, top_k: int | None = None) -> list[DesignCase]:
+    """Untuned baseline + random/TPE bests, or untuned + top-K TPE trials (FDFD pre-screen)."""
     cases = [DesignCase("untuned", CavityParams(), "search_summary:baseline")]
+    if top_k and top_k > 0 and data.get("tpe_top_k"):
+        for i, row in enumerate(data["tpe_top_k"][:top_k]):
+            label = f"tpe_k{i + 1}"
+            cases.append(
+                DesignCase(label, params_from_dict(row["params"]), f"search_summary:{label}"),
+            )
+        return cases
     rnd = data.get("random_search", {}).get("best_params")
     if rnd:
         cases.append(DesignCase("random_best", params_from_dict(rnd), "search_summary:random"))
@@ -49,8 +56,8 @@ def cases_from_phantom_prediction(data: dict) -> list[DesignCase]:
     ]
 
 
-def load_search_cases(path: Path | str) -> list[DesignCase]:
-    return cases_from_search_summary(json.loads(Path(path).read_text()))
+def load_search_cases(path: Path | str, *, top_k: int | None = None) -> list[DesignCase]:
+    return cases_from_search_summary(json.loads(Path(path).read_text()), top_k=top_k)
 
 
 def fdfd_selectivity(
@@ -89,7 +96,12 @@ def export_design_bundle(
     fdfd_sel = fdfd_selectivity(grid, case.params, materials)
 
     m_path = write_openems_model(
-        out_dir / f"{tag}_cavity.m", case.params, materials, Lz=Lz,
+        out_dir / f"{tag}_cavity.m",
+        case.params,
+        materials,
+        Lz=Lz,
+        sim_path=f"./openems_runs/{tag}",
+        sim_csx=f"mw_inv_{tag}",
     )
     npz_path = export_scene_npz(
         out_dir / f"{tag}_scene.npz", case.params, materials, grid_n=grid_n,
@@ -132,4 +144,32 @@ def export_all_cases(
     materials: Materials,
     **kwargs,
 ) -> list[ExportBundle]:
-    return [export_design_bundle(out_dir, case, materials, **kwargs) for case in cases]
+    out_dir = Path(out_dir)
+    bundles = [export_design_bundle(out_dir, case, materials, **kwargs) for case in cases]
+
+    # Convenience runner: execute all exported openEMS cases from Octave.
+    # openEMS itself is not a Python dependency; this is just a helper file.
+    funcs = []
+    for b in bundles:
+        func = "mw_inv_" + b.openems_path.stem.replace("-", "_").replace(".", "_")
+        funcs.append((b.label, func))
+    runner = "% Auto-generated: run all mw_inv openEMS exports in this folder.\n"
+    runner += "% Usage (Octave):  octave -qf run_openems_all.m\n\n"
+    runner += "addpath(pwd);\n"
+    runner += "cases = {\n"
+    for label, func in funcs:
+        runner += f"  struct('label','{label}','fn','{func}')\n"
+    runner += "};\n\n"
+    runner += "for k = 1:numel(cases)\n"
+    runner += "  c = cases{k};\n"
+    runner += "  fprintf('=== running %s (%s) ===\\n', c.label, c.fn);\n"
+    runner += "  try\n"
+    runner += "    sel = feval(c.fn);\n"
+    runner += "    fprintf('selectivity = %.4f\\n', sel);\n"
+    runner += "  catch err\n"
+    runner += "    fprintf('FAILED %s: %s\\n', c.label, err.message);\n"
+    runner += "  end\n"
+    runner += "end\n"
+    (out_dir / "run_openems_all.m").write_text(runner)
+
+    return bundles

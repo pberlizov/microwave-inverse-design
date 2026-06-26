@@ -2,7 +2,7 @@
 
     python scripts/run_solver_triangulation.py --search data/search_summary.json
     python scripts/run_solver_triangulation.py --search data/search_summary.json \\
-        --openems-dump-dir data/openems_runs
+        --openems-dump-dir data/design_exports/search_summary/openems_runs
 """
 
 from __future__ import annotations
@@ -32,6 +32,7 @@ def main() -> None:
     ap.add_argument("--grid", type=int, default=61)
     ap.add_argument("--Lz", type=float, default=0.36)
     ap.add_argument("--openems-dump-dir", default=None)
+    ap.add_argument("--top-k", type=int, default=0, help="use untuned + top-K TPE trials from search summary")
     ap.add_argument("--out", default="data/solver_triangulation.json")
     args = ap.parse_args()
 
@@ -41,8 +42,9 @@ def main() -> None:
     grid = Grid(nx=args.grid, ny=args.grid, Lx=0.36, Ly=0.36)
     dump_dir = Path(args.openems_dump_dir) if args.openems_dump_dir else None
 
+    top_k = args.top_k if args.top_k > 0 else None
     rows = triangulate_from_search(
-        args.search, grid, materials, Lz=args.Lz, openems_dump_dir=dump_dir,
+        args.search, grid, materials, Lz=args.Lz, openems_dump_dir=dump_dir, top_k=top_k,
     )
     write_triangulation_report(
         args.out,

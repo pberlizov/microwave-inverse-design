@@ -192,6 +192,36 @@ def best(trials: list[Trial]) -> Trial:
     return max(trials, key=lambda t: t.selectivity)
 
 
+def trial_to_dict(trial: Trial) -> dict:
+    return {
+        "selectivity": trial.selectivity,
+        "contrast": trial.contrast,
+        "p_target": trial.p_target,
+        "p_total": trial.p_total,
+        "params": trial.params,
+    }
+
+
+def top_k_trials(trials: list[Trial], k: int) -> list[Trial]:
+    """Return up to *k* unique trials ranked by selectivity (FDFD pre-screen for openEMS)."""
+    if k <= 0:
+        return []
+    import json as _json
+
+    ranked = sorted(trials, key=lambda t: t.selectivity, reverse=True)
+    out: list[Trial] = []
+    seen: set[str] = set()
+    for trial in ranked:
+        key = _json.dumps(trial.params, sort_keys=True, default=str)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(trial)
+        if len(out) >= k:
+            break
+    return out
+
+
 # ---------------------------------------------------------------------------
 # High-dimensional tuner-field search.
 #

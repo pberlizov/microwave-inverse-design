@@ -103,7 +103,7 @@ def triangulate_cases(
     for case in cases:
         dump = None
         if openems_dump_dir is not None:
-            for name in (f"{case.label}_Et_0000.h5", f"Et_{case.label}_0000.h5", "Et_0000.h5"):
+            for name in (f"{case.label}_Et_0000.h5", f"Et_{case.label}_0000.h5", "Et_0000.h5", "Et/Et_0000.h5"):
                 p = openems_dump_dir / case.label / name
                 if p.is_file():
                     dump = p
@@ -166,7 +166,12 @@ def triangulate_from_search(
     *,
     Lz: float = 0.36,
     openems_dump_dir: Path | None = None,
+    top_k: int | None = None,
 ) -> list[SolverRow]:
     return triangulate_cases(
-        load_search_cases(search_path), grid, materials, Lz=Lz, openems_dump_dir=openems_dump_dir,
+        load_search_cases(search_path, top_k=top_k),
+        grid,
+        materials,
+        Lz=Lz,
+        openems_dump_dir=openems_dump_dir,
     )

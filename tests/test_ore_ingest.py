@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -83,3 +84,37 @@ def test_ore_summary_roundtrip_keys():
         "loss_contrast", "inferred_gangue",
     ):
         assert key in s
+
+
+def test_materials_from_ore_uses_measured_dielectrics(tmp_path: Path) -> None:
+    measured_path = tmp_path / "measured_eps.json"
+    measured_path.write_text(json.dumps({
+        "description": "synthetic deposit dataset",
+        "phases": {
+            "target": [
+                {"temp_K": 298, "freq_hz": 2.45e9, "eps_real": 9.0, "eps_imag": 0.9},
+            ],
+            "gangue": [
+                {"temp_K": 298, "freq_hz": 2.45e9, "eps_real": 5.0, "eps_imag": 0.05},
+            ],
+        },
+    }))
+    ore_path = tmp_path / "ore.json"
+    ore_path.write_text(json.dumps({
+        "label": "ore_measured",
+        "source": "TEST",
+        "fractions": {"pyrite": 0.1},
+        "gangue_mineral": "quartz",
+        "measured_dielectrics": {
+            "path": str(measured_path),
+            "target_phase": "target",
+            "gangue_phase": "gangue",
+            "moisture_wt_percent": 0.0,
+        },
+    }))
+    ore = load_ore_profile(ore_path)
+    mats = materials_from_ore(ore, target_T_K=298, gangue_T_K=298, freq_hz=2.45e9)
+    assert abs(mats.target.real - 9.0) < 1e-12
+    assert abs(mats.target.imag - 0.9) < 1e-12
+    assert abs(mats.gangue.real - 5.0) < 1e-12
+    assert abs(mats.gangue.imag - 0.05) < 1e-12

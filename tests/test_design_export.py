@@ -35,6 +35,33 @@ def test_load_search_cases(tmp_path):
     assert labels == ["untuned", "random_best", "tpe_best"]
 
 
+def test_load_search_cases_top_k(tmp_path):
+    data = {
+        "tpe_top_k": [
+            {"selectivity": 0.7, "params": {"feed_along_frac": 0.4, "feed_wall": "bottom"}},
+            {"selectivity": 0.65, "params": {"feed_along_frac": 0.5, "feed_wall": "left"}},
+        ],
+        "tpe_search": {"best_params": {"feed_along_frac": 0.4, "feed_wall": "bottom"}},
+    }
+    path = tmp_path / "search.json"
+    path.write_text(json.dumps(data))
+    cases = load_search_cases(path, top_k=2)
+    assert [c.label for c in cases] == ["untuned", "tpe_k1", "tpe_k2"]
+
+
+def test_top_k_trials_dedupes():
+    from mw_inv.search import Trial, top_k_trials
+
+    trials = [
+        Trial({"a": 1}, 0.5, 1.0, 1.0),
+        Trial({"a": 1}, 0.6, 1.0, 1.0),
+        Trial({"a": 2}, 0.55, 1.0, 1.0),
+    ]
+    picked = top_k_trials(trials, 3)
+    assert len(picked) == 2
+    assert picked[0].selectivity == 0.6
+
+
 def test_export_design_bundle(tmp_path):
     case = cases_from_search_summary({"tpe_search": {"best_params": {"feed_wall": "bottom"}}})[0]
     mats = Materials.from_pair("pyrite_in_calcite")
@@ -44,3 +71,6 @@ def test_export_design_bundle(tmp_path):
     manifest = json.loads(bundle.manifest_path.read_text())
     assert "fdfd_selectivity" in manifest
     assert manifest["openems_function"].startswith("mw_inv_")
+    # Exported openEMS script writes dumps to a per-case directory for triangulation ingestion.
+    text = bundle.openems_path.read_text()
+    assert "openems_runs" in text

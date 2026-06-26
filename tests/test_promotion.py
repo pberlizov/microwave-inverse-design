@@ -61,6 +61,16 @@ def test_manifest_roundtrip(tmp_path):
     assert "tier" in loaded.promotion
 
 
+def test_manifest_can_store_provenance(tmp_path: Path) -> None:
+    m = RunManifest(run_id="prov", materials=PAIR)
+    m.provenance = {"runtime": {"python": "x"}, "packages": {"mw-inv": "y"}, "git": {"commit": "z"}}
+    m.cli = {"args": {"grid": 41}}
+    path = m.write(tmp_path / "manifest.json")
+    loaded = RunManifest.load(path)
+    assert loaded.provenance["runtime"]["python"] == "x"
+    assert loaded.cli["args"]["grid"] == 41
+
+
 def test_pipeline_smoke(tmp_path):
     """Tier-1 CI smoke: benchmarks + tiny search + gate + manifest."""
     bench = run_benchmarks()
@@ -106,3 +116,71 @@ def test_pipeline_smoke(tmp_path):
     )
     if tpe_best.selectivity > base.selectivity:
         assert assessment.tier == PromotionTier.FDFD_OPTIMISED
+
+
+def test_bench_calibration_requires_rank_if_lab_measurements_present(tmp_path: Path) -> None:
+    """Bench tier check: measured eps drift + measured ΔT rank agreement when lab JSON is provided."""
+    # Measured eps matches the phantom anchors exactly -> zero drift.
+    measured = {
+        "batches": [
+            {"label": "salt_2pct", "salt_wt_percent": 2.0, "eps_real": 16.0, "eps_imag": 3.5, "freq_hz": 2.45e9},
+            {"label": "salt_0.5pct", "salt_wt_percent": 0.5, "eps_real": 7.0, "eps_imag": 0.35, "freq_hz": 2.45e9},
+        ]
+    }
+    measured_path = tmp_path / "measured_eps.json"
+    measured_path.write_text(json.dumps(measured))
+
+    lab_good = [
+        {"phantom": "saline_2_vs_0.5", "measured_delta_T_K": 12.0, "untuned_measured_delta_T_K": 8.0}
+    ]
+    lab_path = tmp_path / "lab.json"
+    lab_path.write_text(json.dumps(lab_good))
+
+    rows = [
+        SolverRow("untuned", 0.54, openems_selectivity=0.50),
+        SolverRow("tpe_best", 0.62, openems_selectivity=0.58),
+    ]
+    gate = evaluate_gate(rows, GateThresholds(min_fdfd_improvement=0.0))
+
+    assessment = assess_promotion(
+        benchmarks_passed=True,
+        gate=gate,
+        triangulation_rows=rows,
+        phantom_label="saline_2_vs_0.5",
+        measured_eps_path=str(measured_path),
+        lab_measurements_path=str(lab_path),
+    )
+    assert assessment.requirements["bench_phantom_calibration"] is True
+
+    # Now provide a lab file where optimized does not beat untuned -> should fail bench check.
+    lab_bad = [
+        {"phantom": "saline_2_vs_0.5", "measured_delta_T_K": 7.0, "untuned_measured_delta_T_K": 8.0}
+    ]
+    lab_bad_path = tmp_path / "lab_bad.json"
+    lab_bad_path.write_text(json.dumps(lab_bad))
+    assessment2 = assess_promotion(
+        benchmarks_passed=True,
+        gate=gate,
+        triangulation_rows=rows,
+        phantom_label="saline_2_vs_0.5",
+        measured_eps_path=str(measured_path),
+        lab_measurements_path=str(lab_bad_path),
+    )
+    assert assessment2.requirements["bench_phantom_calibration"] is False
+
+
+def test_assess_solver_triangulated_when_openems_present() -> None:
+    """Promotion reaches solver_triangulated when external solver data exists and gate checks pass."""
+    rows = [
+        SolverRow("untuned", 0.50, openems_selectivity=0.48, rel_err_openems=0.04),
+        SolverRow("random_best", 0.60, openems_selectivity=0.58, rel_err_openems=0.03),
+        SolverRow("tpe_best", 0.62, openems_selectivity=0.60, rel_err_openems=0.03),
+    ]
+    gate = evaluate_gate(rows, GateThresholds(min_fdfd_improvement=0.0))
+    assessment = assess_promotion(
+        benchmarks_passed=True,
+        gate=gate,
+        triangulation_rows=rows,
+    )
+    assert assessment.tier in (PromotionTier.SOLVER_TRIANGULATED, PromotionTier.BENCH_CALIBRATED)
+    assert assessment.requirements["external_solver_validation"] is True

@@ -21,6 +21,8 @@ class RunManifest:
     materials: str
     created_at: str = field(default_factory=_utc_now)
     preset: str = "em"
+    cli: dict[str, Any] = field(default_factory=dict)
+    provenance: dict[str, Any] = field(default_factory=dict)
     search_path: str | None = None
     search_summary: dict[str, Any] = field(default_factory=dict)
     benchmarks_path: str | None = None
@@ -43,6 +45,8 @@ class RunManifest:
             "created_at": self.created_at,
             "materials": self.materials,
             "preset": self.preset,
+            "cli": self.cli,
+            "provenance": self.provenance,
             "search": {
                 "path": self.search_path,
                 "summary": self.search_summary,
@@ -85,6 +89,8 @@ class RunManifest:
             created_at=data.get("created_at", _utc_now()),
             preset=data.get("preset", "em"),
         )
+        m.cli = data.get("cli", {})
+        m.provenance = data.get("provenance", {})
         search = data.get("search", {})
         m.search_path = search.get("path")
         m.search_summary = search.get("summary", {})
@@ -125,6 +131,7 @@ def finalize_promotion(manifest: RunManifest) -> PromotionAssessment:
         triangulation_rows=rows,
         phantom_label=manifest.bench.get("phantom_label"),
         measured_eps_path=manifest.bench.get("measured_eps_path"),
+        lab_measurements_path=manifest.bench.get("lab_measurements_path"),
     )
     manifest.promotion = assessment.to_dict()
     return assessment

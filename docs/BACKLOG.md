@@ -173,6 +173,11 @@ Done when:
 - Demonstrated sample-efficiency improvement on a clearly high-dimensional actuator.
 
 ### F1 (P2) Multi-fidelity optimization (FDFD pre-screen → openEMS truth)
+
+**Status (partial):** `--openems-top-k` on `mw-inv-pipeline` / `export_design.py` stores
+`tpe_top_k` in search JSON and exports untuned + top-K FDFD winners for openEMS validation.
+Use `scripts/update_run_with_openems.py` after Octave runs to refresh promotion tier.
+
 Implementation steps:
 1. Use FDFD to filter candidates; periodically validate with openEMS and update a surrogate.
 2. Add promotion-aware scheduling: don’t waste openEMS runs before FDFD gates pass.

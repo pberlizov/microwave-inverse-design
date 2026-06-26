@@ -52,6 +52,12 @@ def main() -> None:
         action="store_true",
         help="skip promotion tier check (dev only)",
     )
+    ap.add_argument(
+        "--openems-top-k",
+        type=int,
+        default=0,
+        help="export untuned + top-K TPE trials (requires tpe_top_k in search JSON)",
+    )
     args = ap.parse_args()
 
     manifest: RunManifest | None = None
@@ -72,7 +78,8 @@ def main() -> None:
 
     out_dir = Path(args.out_dir)
     if args.search:
-        cases = load_search_cases(args.search)
+        top_k = args.openems_top_k if args.openems_top_k > 0 else None
+        cases = load_search_cases(args.search, top_k=top_k)
         materials = Materials.from_pair(
             json.loads(Path(args.search).read_text()).get("materials", args.materials)
         )
@@ -113,6 +120,12 @@ def main() -> None:
     for b in bundles:
         print(f"  {b.label:12s}  FDFD sel={b.fdfd_selectivity:.4f}  -> {b.openems_path.name}")
     print(f"  wrote {summary_path}")
+    print("Run openEMS in Octave (from the export folder):")
+    print(f"  cd {out_dir.resolve()}")
+    print("  octave -qf run_openems_all.m")
+    print("Then ingest dumps:")
+    print(f"  python3 scripts/run_solver_triangulation.py --search {args.search or '(your search_summary.json)'} "
+          f"--openems-dump-dir {out_dir / 'openems_runs'}")
 
 
 if __name__ == "__main__":

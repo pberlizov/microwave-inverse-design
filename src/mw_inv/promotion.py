@@ -101,6 +101,7 @@ def _solver_gate_checks_ok(gate: ValidationGateReport | None) -> bool:
 def _bench_calibration_ok(
     phantom_label: str | None,
     measured_eps_path: str | Path | None,
+    lab_measurements_path: str | Path | None = None,
     *,
     max_real_drift: float = 1.5,
     max_imag_drift: float = 0.5,
@@ -122,7 +123,32 @@ def _bench_calibration_ok(
             return False
         if abs(float(row.get("drift_imag", 0.0))) > max_imag_drift:
             return False
-    return bool(report.get("comparisons"))
+    if not report.get("comparisons"):
+        return False
+
+    if lab_measurements_path:
+        lp = Path(lab_measurements_path)
+        if not lp.is_file():
+            return False
+        import json
+
+        payload = json.loads(lp.read_text())
+        rows = payload if isinstance(payload, list) else payload.get("measurements", [])
+        matches = [r for r in rows if r.get("phantom") == phantom_label]
+        if not matches:
+            return False
+        # Require at least one record with explicit untuned baseline where optimized beats it.
+        ok_rank = False
+        for r in matches:
+            if r.get("untuned_measured_delta_T_K") is None:
+                continue
+            ok_rank = float(r["measured_delta_T_K"]) > float(r["untuned_measured_delta_T_K"])
+            if ok_rank:
+                break
+        if not ok_rank:
+            return False
+
+    return True
 
 
 def assess_promotion(
@@ -132,6 +158,7 @@ def assess_promotion(
     triangulation_rows: list[Any] | None = None,
     phantom_label: str | None = None,
     measured_eps_path: str | None = None,
+    lab_measurements_path: str | None = None,
 ) -> PromotionAssessment:
     """Compute highest tier satisfied by available evidence."""
 
@@ -142,6 +169,7 @@ def assess_promotion(
     bench_ok = solver_ok and _bench_calibration_ok(
         phantom_label,
         measured_eps_path if measured_eps_path else None,
+        lab_measurements_path if lab_measurements_path else None,
     )
 
     reqs = {
@@ -181,6 +209,7 @@ def tier_from_manifest(manifest: dict[str, Any]) -> PromotionTier:
         triangulation_rows=_rows_from_dict(manifest.get("triangulation", {})),
         phantom_label=manifest.get("bench", {}).get("phantom_label"),
         measured_eps_path=manifest.get("bench", {}).get("measured_eps_path"),
+        lab_measurements_path=manifest.get("bench", {}).get("lab_measurements_path"),
     ).tier
 
 

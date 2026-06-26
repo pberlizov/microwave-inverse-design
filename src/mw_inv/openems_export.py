@@ -53,6 +53,8 @@ def generate_openems_script(
     n_timesteps: int = 30_000,
     function_name: str = "mw_inv_openems_cavity",
     port_mode: str = "coax_gap",
+    sim_path: str = "./openems_tmp",
+    sim_csx: str = "mw_inv_cavity",
 ) -> str:
     """Full Octave/openEMS script (InitCSX → RunOpenEMS → selectivity post-process)."""
     p = params or CavityParams()
@@ -129,8 +131,8 @@ fprintf('openEMS |S11| = %.4f\\n', s11_mag);
 
 physical_constants;
 unit = {unit};
-Sim_Path = './openems_tmp';
-Sim_CSX = 'mw_inv_cavity';
+	Sim_Path = '{sim_path}';
+	Sim_CSX = '{sim_csx}';
 freq = {freq:.6e};
 EPS0 = {EPS0:.12e};
 
@@ -170,7 +172,7 @@ cx = {p.charge_cx_frac} * Lx; cy = {p.charge_cy_frac} * Ly;
 hw = 0.5 * {p.charge_w_frac} * Lx; hh = 0.5 * {p.charge_h_frac} * Ly;
 r_grain = {p.inclusion_radius_frac} * min(Lx, Ly);
 
-dump_file = [Sim_Path '/Et/Et_0000.h5'];
+	dump_file = [Sim_Path '/Et/Et_0000.h5'];
 if exist(dump_file, 'file') ~= 2
   warning('No field dump found — returning NaN');
   selectivity = NaN;
@@ -210,6 +212,8 @@ def generate_calibration_script(
     unit: float = 1e-3,
     n_timesteps: int = 20_000,
     function_name: str = "mw_inv_calibration_cavity",
+    sim_path: str = "./openems_cal_tmp",
+    sim_csx: str = "cal_cavity",
 ) -> str:
     """Empty PEC cavity + top coax gap — cross-solver S11 calibration fixture."""
     bx, by, bz = Lx / unit, Lx / unit, Lz / unit
@@ -223,8 +227,8 @@ def generate_calibration_script(
 % Run before ore models to verify openEMS port + mesh on your install.
 physical_constants;
 unit = {unit};
-Sim_Path = './openems_cal_tmp';
-Sim_CSX = 'cal_cavity';
+	Sim_Path = '{sim_path}';
+	Sim_CSX = '{sim_csx}';
 freq = {freq_hz:.6e};
 
 FDTD = InitFDTD('NrTS', {n_timesteps}, 'EndCriteria', 1e-5);

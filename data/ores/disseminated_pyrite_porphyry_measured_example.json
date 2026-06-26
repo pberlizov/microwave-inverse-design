@@ -1,0 +1,22 @@
+{
+  "label": "disseminated_pyrite_porphyry_measured_example",
+  "source": "EXAMPLE",
+  "fractions": {
+    "pyrite": 0.04,
+    "chalcopyrite": 0.02
+  },
+  "gangue_label": "quartz_feldspar",
+  "gangue_mineral": "quartz",
+  "texture": {
+    "class": "disseminated",
+    "mean_grain_radius_m": 0.0025
+  },
+  "measured_dielectrics": {
+    "path": "data/templates/measured_dielectrics.template.json",
+    "target_phase": "target",
+    "gangue_phase": "gangue",
+    "moisture_wt_percent": 0.0
+  },
+  "notes": "Example ore profile showing how to point to a measured ε dataset. Replace the path with your deposit/batch measurements."
+}
+

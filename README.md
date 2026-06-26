@@ -213,17 +213,29 @@ python3 scripts/run_stress_search.py --materials pyrite_in_calcite     # liberat
 python3 scripts/run_ore_profile.py --all                               # HMAP heating classes
 python3 scripts/ingest_ore_profile.py data/ores/disseminated_pyrite_porphyry.json  # QEMSCAN ingest
 python3 scripts/run_search.py --ore data/ores/disseminated_pyrite_porphyry.json --trials 24
+python3 scripts/run_search.py --ore data/ores/disseminated_pyrite_porphyry_measured_example.json --trials 24
 python3 scripts/ingest_measured_dielectrics.py data/templates/measured_dielectrics.template.json
 python3 scripts/ingest_probe_measurements.py data/measured_eps.template.json
 python3 scripts/generate_openems_stub.py                          # alias for export_openems
 python3 scripts/plot_fields.py --materials pyrite_in_calcite  # -> data/fields.npz (+ fields.png)
 python3 scripts/run_pipeline.py --materials pyrite_in_calcite --trials 24  # Tier-1: bench→search→gate→manifest
 python3 scripts/run_pipeline.py --ore data/ores/massive_pyrite.json --trials 24  # Tier-2: deposit-grounded
+python3 scripts/run_pipeline.py --openems-top-k 3 --trials 40  # Tier-3: FDFD pre-screen → openEMS export
+python3 scripts/update_run_with_openems.py --run-dir data/runs/<RUN> --openems-dump-dir data/runs/<RUN>/design_exports/openems_runs
 python3 scripts/run_design_eval.py --preset composite:liberation  # unified FOM report
 python3 scripts/run_materials_catalog.py --pairs          # HMAP + gangue ε catalog
 python3 scripts/run_benchmarks.py                                    # literature benchmark suite
 python3 scripts/run_validation.py              # forward-model validation suite -> data/validation_report.json
 python3 -m pytest tests/ -q                         # sanity checks
+```
+
+## Reproduce CI in Docker
+
+CI runs on Python 3.11. To reproduce in a clean container:
+
+```bash
+docker build -t mw-inv .
+docker run --rm mw-inv
 ```
 
 > **Figures:** committed plots live in [docs/img/](docs/img/). To regenerate them you need
