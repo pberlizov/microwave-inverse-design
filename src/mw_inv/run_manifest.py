@@ -133,6 +133,7 @@ def finalize_promotion(manifest: RunManifest) -> PromotionAssessment:
         phantom_label=manifest.bench.get("phantom_label"),
         measured_eps_path=manifest.bench.get("measured_eps_path"),
         lab_measurements_path=manifest.bench.get("lab_measurements_path"),
+        pilot_gate=manifest.evaluation.get("pilot_gate") or None,
     )
     manifest.promotion = assessment.to_dict()
     return assessment

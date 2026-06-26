@@ -30,6 +30,21 @@ def test_load_ore_profile_fixture():
     assert ore.texture is not None
     assert ore.texture.texture_class == "disseminated"
     assert ore.texture.mean_grain_radius_m == 0.0025
+    assert ore.texture.packing_fraction == 0.64
+    assert ore.texture.psd is not None
+    assert ore.texture.psd.d50_m == 0.0050
+
+
+def test_packing_dilutes_gangue_eps():
+    from mw_inv.ore_profiles import resolve_packing_fraction
+
+    ore = load_ore_profile(DATA_ORES / "disseminated_pyrite_porphyry.json")
+    dry = materials_from_ore(ore, pair_fallback="pyrite_in_calcite")
+    ore_no_pack = load_ore_profile(DATA_ORES / "massive_pyrite.json")
+    packed = materials_from_ore(ore)
+    assert resolve_packing_fraction(ore) == 0.64
+    assert packed.gangue.real <= dry.gangue.real or packed.gangue.imag <= dry.gangue.imag
+    assert materials_from_ore(ore_no_pack).gangue.real >= 1.0
 
 
 def test_suggest_pair_porphyry():

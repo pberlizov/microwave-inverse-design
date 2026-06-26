@@ -10,6 +10,12 @@
   "gangue_mineral": "quartz",
   "texture": {
     "class": "disseminated",
-    "mean_grain_radius_m": 0.0025
+    "mean_grain_radius_m": 0.0025,
+    "packing_fraction": 0.64,
+    "psd": {
+      "d10_m": 0.0015,
+      "d50_m": 0.0050,
+      "d90_m": 0.0120
+    }
   }
 }

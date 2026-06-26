@@ -15,7 +15,7 @@ Conventions:
 1. **M1 — Solver-triangulated** (reach `solver_triangulated` tier consistently) — **one-command path done** (`--run-openems` / `--synthesize-openems-dumps`)
 2. **M2 — Bench-calibrated** (reach `bench_calibrated` on gel phantoms) — **pipeline path done** (`--phantom`, `--measured-eps`, `--lab-measurements`, `evaluate_bench_gate`)
 3. **M3 — Deposit-calibrated** (new tier: measured ore ε(f,T,moisture) + validation) — **done** (`DEPOSIT_CALIBRATED` tier, `--ore` manifest block)
-4. **M4 — Pilot-ready** (new tier: safety constraints + repeatability + throughput metrics)
+4. **M4 — Pilot-ready** (new tier: safety constraints + repeatability + throughput metrics) — **done** (`PILOT_READY` tier, `pilot_gate.py`, `--pilot-enforce`)
 
 ## Backlog mapping (deferred from “ports + productization” scope)
 
@@ -175,6 +175,11 @@ Done when:
 - The pipeline can run end-to-end with a “named deposit” dataset and record provenance.
 
 ### D1 (P1) Microstructure realism: packing fraction, PSD, and mixing models
+
+**Status (partial):** ore JSON `texture.packing_fraction` + `texture.psd` {d10,d50,d90};
+`resolve_packing_fraction()` / `porosity_diluted_eps()` in Bruggeman gangue+target mixing;
+PSD d50 → grain radius when `mean_grain_radius_m` absent.
+
 Implementation steps:
 1. Add packing fraction + PSD to ore profiles and scene generators.
 2. Implement mixing models beyond simple Bruggeman where appropriate (calibrated to measurement).

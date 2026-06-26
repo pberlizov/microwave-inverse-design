@@ -42,11 +42,30 @@ MAX_SAFE_LOSS_TANGENT = 1.5           # tan δ above this → arcing risk flag
 
 
 @dataclass(frozen=True)
+class OrePSD:
+    """Particle-size distribution characteristic diameters [m]."""
+
+    d10_m: float | None = None
+    d50_m: float | None = None
+    d90_m: float | None = None
+
+
+# Default solid packing by texture when not measured (typical crushed ore beds).
+DEFAULT_PACKING_BY_TEXTURE: dict[str, float] = {
+    "disseminated": 0.62,
+    "massive": 0.88,
+    "vein": 0.72,
+}
+
+
+@dataclass(frozen=True)
 class OreTexture:
     """QEMSCAN-derived texture hints for geometry defaults."""
 
     texture_class: str | None = None  # disseminated | massive | vein
     mean_grain_radius_m: float | None = None
+    packing_fraction: float | None = None  # solid volume fraction in charge (0–1)
+    psd: OrePSD | None = None
 
 
 @dataclass(frozen=True)
@@ -129,9 +148,19 @@ def load_ore_profile(path: Path | str) -> OreComposition:
     texture: OreTexture | None = None
     if data.get("texture"):
         t = data["texture"]
+        psd_block = t.get("psd")
+        psd: OrePSD | None = None
+        if isinstance(psd_block, dict):
+            psd = OrePSD(
+                d10_m=psd_block.get("d10_m"),
+                d50_m=psd_block.get("d50_m"),
+                d90_m=psd_block.get("d90_m"),
+            )
         texture = OreTexture(
             texture_class=t.get("class") or t.get("texture_class"),
             mean_grain_radius_m=t.get("mean_grain_radius_m"),
+            packing_fraction=t.get("packing_fraction"),
+            psd=psd,
         )
 
     fractions = {str(k): float(v) for k, v in data["fractions"].items()}
@@ -218,6 +247,32 @@ def suggest_material_pair(ore: OreComposition) -> str:
     return best_label
 
 
+def resolve_packing_fraction(ore: OreComposition) -> float | None:
+    """Solid volume fraction for mixing; explicit value or texture-class default."""
+    if ore.texture is None:
+        return None
+    if ore.texture.packing_fraction is not None:
+        return float(np.clip(ore.texture.packing_fraction, 0.05, 0.98))
+    tc = (ore.texture.texture_class or "").lower()
+    return DEFAULT_PACKING_BY_TEXTURE.get(tc)
+
+
+def effective_grain_radius_m(texture: OreTexture) -> float | None:
+    """Grain radius from explicit mean or PSD d50 (diameter → radius)."""
+    if texture.mean_grain_radius_m is not None:
+        return max(float(texture.mean_grain_radius_m), 1e-6)
+    if texture.psd and texture.psd.d50_m is not None:
+        return max(float(texture.psd.d50_m) * 0.5, 1e-6)
+    return None
+
+
+def porosity_diluted_eps(solid_eps: complex, packing_fraction: float) -> complex:
+    """Bruggeman mix of solid mineral with air voids at porosity (1 − packing)."""
+    packing = float(np.clip(packing_fraction, 0.05, 0.98))
+    void_eps = 1.0 + 0.0j
+    return bruggeman_effective_eps([solid_eps, void_eps], [packing, 1.0 - packing])
+
+
 def cavity_params_from_ore(
     ore: OreComposition,
     base: CavityParams | None = None,
@@ -229,9 +284,9 @@ def cavity_params_from_ore(
     if ore.texture is None:
         return p
 
-    if ore.texture.mean_grain_radius_m is not None:
-        r = max(ore.texture.mean_grain_radius_m, 1e-5)
-        p.inclusion_radius_frac = float(np.clip(r / cavity_span_m, 0.01, 0.12))
+    grain_r = effective_grain_radius_m(ore.texture)
+    if grain_r is not None:
+        p.inclusion_radius_frac = float(np.clip(grain_r / cavity_span_m, 0.01, 0.12))
 
     tc = (ore.texture.texture_class or "").lower()
     if tc == "disseminated":
@@ -313,6 +368,15 @@ def ore_summary(
         "texture": None if ore.texture is None else {
             "class": ore.texture.texture_class,
             "mean_grain_radius_m": ore.texture.mean_grain_radius_m,
+            "effective_grain_radius_m": (
+                effective_grain_radius_m(ore.texture) if ore.texture else None
+            ),
+            "packing_fraction": resolve_packing_fraction(ore),
+            "psd": None if ore.texture.psd is None else {
+                "d10_m": ore.texture.psd.d10_m,
+                "d50_m": ore.texture.psd.d50_m,
+                "d90_m": ore.texture.psd.d90_m,
+            },
         },
     }
 
@@ -396,6 +460,10 @@ def materials_from_ore(
 
     gangue_eps = mineral_eps(gangue_key, gangue_T_K, freq_hz)
     gangue_mu = mineral_mu(gangue_key, gangue_T_K, freq_hz)
+    packing = resolve_packing_fraction(ore)
+    if packing is not None and packing < 0.999:
+        gangue_eps = porosity_diluted_eps(gangue_eps, packing)
+        gangue_mu = porosity_diluted_eps(gangue_mu, packing)
 
     if hmap_frac < 1e-6:
         return Materials(
@@ -415,6 +483,9 @@ def materials_from_ore(
     hmap_mu = [mineral_mu(m, target_T_K, freq_hz) for m, _ in hmap_items]
     target_eps = bruggeman_effective_eps(hmap_eps, fracs)
     target_mu = bruggeman_effective_eps(hmap_mu, fracs)
+    if packing is not None and packing < 0.999:
+        target_eps = porosity_diluted_eps(target_eps, packing)
+        target_mu = porosity_diluted_eps(target_mu, packing)
 
     return Materials(
         background=pair.background,

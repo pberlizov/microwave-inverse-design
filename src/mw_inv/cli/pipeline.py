@@ -23,6 +23,7 @@ from mw_inv.openems_runner import (
     run_openems_exports,
     synthesize_port_dumps,
 )
+from mw_inv.pilot_gate import DEFAULT_MIN_COUPLING_EFF, evaluate_pilot_gate
 from mw_inv.promotion import PromotionTier, meets_tier
 from mw_inv.provenance import default_provenance
 from mw_inv.run_manifest import RunManifest, default_run_dir
@@ -398,6 +399,17 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--robust-enforce", action="store_true", help="fail the pipeline if robustness gate fails")
     ap.add_argument("--robust-floor", type=float, default=0.0, help="minimum acceptable robust min selectivity")
     ap.add_argument("--robust-min-improvement", type=float, default=0.0, help="minimum robust min-selectivity improvement vs untuned")
+    ap.add_argument(
+        "--pilot-min-coupling",
+        type=float,
+        default=DEFAULT_MIN_COUPLING_EFF,
+        help="minimum coupling_eff for pilot_ready throughput check",
+    )
+    ap.add_argument(
+        "--pilot-enforce",
+        action="store_true",
+        help="fail pipeline if pilot_gate checks fail (M4)",
+    )
     ap.add_argument("--legacy", action="store_true")
     ap.add_argument(
         "--multi-objective",
@@ -632,6 +644,22 @@ def main(argv: list[str] | None = None) -> None:
             print(f"  robustness: FAIL -> {gate.get('detail')}")
             print(f"  manifest: {manifest_path}")
             raise SystemExit(3)
+
+    pilot_report = evaluate_pilot_gate(
+        manifest.evaluation,
+        manifest.search_summary,
+        min_coupling_eff=args.pilot_min_coupling,
+    )
+    manifest.evaluation["pilot_gate"] = pilot_report.to_dict()
+    if pilot_report.passed:
+        print("  pilot gate: PASS")
+    else:
+        failed = [c.name for c in pilot_report.checks if not c.passed]
+        print(f"  pilot gate: FAIL ({', '.join(failed)})")
+        if args.pilot_enforce:
+            manifest.notes.append(f"pilot gate failed: {failed}")
+            manifest.write(run_dir / "manifest.json")
+            raise SystemExit(5)
 
     # --- gate / triangulation (FDFD pre-check for export tier; openEMS refresh later) ---
     dump_dir = Path(args.openems_dump_dir) if args.openems_dump_dir else None

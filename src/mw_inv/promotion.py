@@ -7,6 +7,7 @@ Tiers (cumulative requirements):
   deposit_calibrated   — named deposit with validated measured ore ε(f,T,moisture)
   solver_triangulated  — external solver data present and gate solver checks pass
   bench_calibrated     — phantom probe ε drift within tolerance (optional bench JSON)
+  pilot_ready          — safety-screened multi-objective + robust repeatability + coupling floor
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ class PromotionTier(str, Enum):
     DEPOSIT_CALIBRATED = "deposit_calibrated"
     SOLVER_TRIANGULATED = "solver_triangulated"
     BENCH_CALIBRATED = "bench_calibrated"
+    PILOT_READY = "pilot_ready"
 
 
 TIER_ORDER: tuple[PromotionTier, ...] = (
@@ -37,6 +39,7 @@ TIER_ORDER: tuple[PromotionTier, ...] = (
     PromotionTier.DEPOSIT_CALIBRATED,
     PromotionTier.SOLVER_TRIANGULATED,
     PromotionTier.BENCH_CALIBRATED,
+    PromotionTier.PILOT_READY,
 )
 
 
@@ -172,6 +175,13 @@ def _deposit_calibration_ok(ore_block: dict | None) -> bool:
     return bool(dataset.get("dataset_id") or dataset.get("phases"))
 
 
+def _pilot_ready_ok(pilot_gate: dict | None) -> bool:
+    """Pilot tier: explicit pilot_gate block from pipeline evaluation."""
+    if not pilot_gate:
+        return False
+    return bool(pilot_gate.get("passed"))
+
+
 def assess_promotion(
     *,
     benchmarks_passed: bool | None = None,
@@ -181,6 +191,7 @@ def assess_promotion(
     phantom_label: str | None = None,
     measured_eps_path: str | None = None,
     lab_measurements_path: str | None = None,
+    pilot_gate: dict | None = None,
 ) -> PromotionAssessment:
     """Compute highest tier satisfied by available evidence."""
 
@@ -194,6 +205,7 @@ def assess_promotion(
         measured_eps_path if measured_eps_path else None,
         lab_measurements_path if lab_measurements_path else None,
     )
+    pilot_ok = bench_ok and _pilot_ready_ok(pilot_gate)
 
     reqs = {
         "literature_benchmarks": lit,
@@ -201,6 +213,7 @@ def assess_promotion(
         "deposit_measured_eps": deposit_ok,
         "external_solver_validation": solver_ok,
         "bench_phantom_calibration": bench_ok,
+        "pilot_safety_repeatability": pilot_ok,
     }
     notes: list[str] = []
     if fdfd and not has_ext:
@@ -209,8 +222,15 @@ def assess_promotion(
         notes.append("deposit_calibrated requires --ore with validated measured_dielectrics")
     if solver_ok and not bench_ok:
         notes.append("bench_calibrated requires measured_eps.json within drift tolerance")
+    if bench_ok and not pilot_ok:
+        notes.append(
+            "pilot_ready requires --multi-objective --check-arcing --check-hotspot, "
+            "--robust, and passing pilot_gate"
+        )
 
-    if bench_ok:
+    if pilot_ok:
+        tier = PromotionTier.PILOT_READY
+    elif bench_ok:
         tier = PromotionTier.BENCH_CALIBRATED
     elif solver_ok:
         tier = PromotionTier.SOLVER_TRIANGULATED
@@ -239,6 +259,7 @@ def tier_from_manifest(manifest: dict[str, Any]) -> PromotionTier:
         phantom_label=manifest.get("bench", {}).get("phantom_label"),
         measured_eps_path=manifest.get("bench", {}).get("measured_eps_path"),
         lab_measurements_path=manifest.get("bench", {}).get("lab_measurements_path"),
+        pilot_gate=manifest.get("evaluation", {}).get("pilot_gate"),
     ).tier
 
 
