@@ -41,8 +41,12 @@ def main(argv: list[str] | None = None) -> None:
         "--ore",
         type=str,
         default=None,
-        help="QEMSCAN/assay ore JSON — auto pair + Bruggeman ε (data/ores/)",
+        help="QEMSCAN/assay ore JSON — auto pair + measured or Bruggeman ε (data/ores/)",
     )
+    ap.add_argument("--ore-target-t", type=float, default=None, help="target phase T [K] for measured ε")
+    ap.add_argument("--ore-gangue-t", type=float, default=None, help="gangue phase T [K] for measured ε")
+    ap.add_argument("--ore-freq", type=float, default=None, help="frequency [Hz] for measured ε")
+    ap.add_argument("--ore-moisture", type=float, default=None, help="moisture wt%% for measured ε")
     ap.add_argument("--out", type=str, default="data/search_summary.json")
     ap.add_argument(
         "--legacy",
@@ -66,10 +70,27 @@ def main(argv: list[str] | None = None) -> None:
     base_params = CavityParams()
 
     if args.ore:
-        ore = load_ore_profile(args.ore)
-        materials = materials_from_ore(ore)
+        ore_path = Path(args.ore)
+        ore = load_ore_profile(ore_path)
+        ore_kw = dict(
+            ore_profile_path=ore_path,
+            target_T_K=args.ore_target_t if args.ore_target_t is not None else 298.0,
+            gangue_T_K=args.ore_gangue_t if args.ore_gangue_t is not None else 298.0,
+            freq_hz=args.ore_freq if args.ore_freq is not None else 2.45e9,
+            moisture_wt_percent=args.ore_moisture,
+        )
+        materials = materials_from_ore(ore, **ore_kw)
         base_params = cavity_params_from_ore(ore, cavity_span_m=grid.Lx)
-        ore_block = {**ore_summary(ore), "json_path": str(args.ore)}
+        ore_block = {
+            **ore_summary(ore, **ore_kw),
+            "json_path": str(ore_path.resolve()),
+            "eval_conditions": {
+                "target_T_K": ore_kw["target_T_K"],
+                "gangue_T_K": ore_kw["gangue_T_K"],
+                "freq_hz": ore_kw["freq_hz"],
+                "moisture_wt_percent": ore_kw["moisture_wt_percent"],
+            },
+        }
         materials_label = materials.pair_label or "custom"
     else:
         pair_label = args.materials or DEFAULT_PAIR.label

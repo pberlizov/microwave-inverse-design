@@ -227,6 +227,7 @@ python3 scripts/run_port_validation.py --out-dir data/port_validation  # A1 port
 python3 scripts/update_run_with_openems.py --run-dir data/runs/<RUN> --openems-dump-dir data/runs/<RUN>/design_exports/openems_runs
 mw-inv-port-validation --out-dir data/port_validation  # same as scripts/run_port_validation.py
 mw-inv-update-run-openems --run-dir data/runs/<RUN> --openems-dump-dir data/runs/<RUN>/design_exports/openems_runs
+python3 scripts/ingest_vna_s11.py --unloaded data/vna/unloaded.s1p --loaded data/vna/loaded.s1p  # Stage-A bench RF
 python3 scripts/run_design_eval.py --preset composite:liberation  # unified FOM report
 python3 scripts/run_materials_catalog.py --pairs          # HMAP + gangue ε catalog
 python3 scripts/run_benchmarks.py                                    # literature benchmark suite

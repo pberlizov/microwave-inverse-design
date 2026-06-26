@@ -1,0 +1,30 @@
+{
+  "dataset_id": "disseminated_pyrite_porphyry_lab_v1",
+  "version": "2026-06-26",
+  "description": "Synthetic lab-style ε(f,T,moisture) for a disseminated pyrite porphyry deposit (2.40–2.50 GHz ISM band). Replace with your probe/network-analyser measurements.",
+  "phases": [
+    {
+      "label": "target",
+      "points": [
+        {"temp_K": 298, "freq_hz": 2.40e9, "eps_real": 7.8, "eps_imag": 0.28, "moisture_wt_percent": 0.0, "source": "open_coax_probe", "notes": "sulphide-rich ore bulk, dry"},
+        {"temp_K": 298, "freq_hz": 2.45e9, "eps_real": 8.0, "eps_imag": 0.30, "moisture_wt_percent": 0.0, "source": "open_coax_probe"},
+        {"temp_K": 298, "freq_hz": 2.50e9, "eps_real": 8.2, "eps_imag": 0.32, "moisture_wt_percent": 0.0, "source": "open_coax_probe"},
+        {"temp_K": 373, "freq_hz": 2.45e9, "eps_real": 8.6, "eps_imag": 0.45, "moisture_wt_percent": 0.0, "source": "open_coax_probe", "notes": "100 C preheat"},
+        {"temp_K": 473, "freq_hz": 2.45e9, "eps_real": 9.4, "eps_imag": 0.72, "moisture_wt_percent": 0.0, "source": "open_coax_probe", "notes": "200 C preheat"},
+        {"temp_K": 298, "freq_hz": 2.45e9, "eps_real": 8.5, "eps_imag": 0.42, "moisture_wt_percent": 1.5, "source": "open_coax_probe", "notes": "plant moisture"},
+        {"temp_K": 298, "freq_hz": 2.45e9, "eps_real": 9.1, "eps_imag": 0.58, "moisture_wt_percent": 3.0, "source": "open_coax_probe", "notes": "wet ROM"}
+      ]
+    },
+    {
+      "label": "gangue",
+      "points": [
+        {"temp_K": 298, "freq_hz": 2.40e9, "eps_real": 8.3, "eps_imag": 0.04, "moisture_wt_percent": 0.0, "source": "open_coax_probe", "notes": "quartz-feldspar matrix, dry"},
+        {"temp_K": 298, "freq_hz": 2.45e9, "eps_real": 8.5, "eps_imag": 0.05, "moisture_wt_percent": 0.0, "source": "open_coax_probe"},
+        {"temp_K": 298, "freq_hz": 2.50e9, "eps_real": 8.7, "eps_imag": 0.06, "moisture_wt_percent": 0.0, "source": "open_coax_probe"},
+        {"temp_K": 373, "freq_hz": 2.45e9, "eps_real": 8.6, "eps_imag": 0.06, "moisture_wt_percent": 0.0, "source": "open_coax_probe"},
+        {"temp_K": 298, "freq_hz": 2.45e9, "eps_real": 8.8, "eps_imag": 0.08, "moisture_wt_percent": 1.5, "source": "open_coax_probe"},
+        {"temp_K": 298, "freq_hz": 2.45e9, "eps_real": 9.2, "eps_imag": 0.12, "moisture_wt_percent": 3.0, "source": "open_coax_probe"}
+      ]
+    }
+  ]
+}

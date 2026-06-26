@@ -113,7 +113,7 @@ def test_materials_from_ore_uses_measured_dielectrics(tmp_path: Path) -> None:
         },
     }))
     ore = load_ore_profile(ore_path)
-    mats = materials_from_ore(ore, target_T_K=298, gangue_T_K=298, freq_hz=2.45e9)
+    mats = materials_from_ore(ore, ore_profile_path=ore_path, target_T_K=298, gangue_T_K=298, freq_hz=2.45e9)
     assert abs(mats.target.real - 9.0) < 1e-12
     assert abs(mats.target.imag - 0.9) < 1e-12
     assert abs(mats.gangue.real - 5.0) < 1e-12

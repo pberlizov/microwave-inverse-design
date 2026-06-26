@@ -129,6 +129,7 @@ def finalize_promotion(manifest: RunManifest) -> PromotionAssessment:
         benchmarks_passed=manifest.benchmarks_passed,
         gate=gate_obj,
         triangulation_rows=rows,
+        ore_block=manifest.ore or None,
         phantom_label=manifest.bench.get("phantom_label"),
         measured_eps_path=manifest.bench.get("measured_eps_path"),
         lab_measurements_path=manifest.bench.get("lab_measurements_path"),

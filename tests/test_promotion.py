@@ -30,7 +30,10 @@ PAIR = "pyrite_in_calcite"
 
 def test_tier_ordering():
     assert meets_tier(PromotionTier.FDFD_OPTIMISED, PromotionTier.LITERATURE_GROUNDED)
+    assert meets_tier(PromotionTier.DEPOSIT_CALIBRATED, PromotionTier.FDFD_OPTIMISED)
+    assert meets_tier(PromotionTier.SOLVER_TRIANGULATED, PromotionTier.DEPOSIT_CALIBRATED)
     assert not meets_tier(PromotionTier.LITERATURE_GROUNDED, PromotionTier.FDFD_OPTIMISED)
+    assert not meets_tier(PromotionTier.FDFD_OPTIMISED, PromotionTier.DEPOSIT_CALIBRATED)
     assert not meets_tier(PromotionTier.UNRANKED, PromotionTier.LITERATURE_GROUNDED)
 
 
@@ -184,3 +187,38 @@ def test_assess_solver_triangulated_when_openems_present() -> None:
     )
     assert assessment.tier in (PromotionTier.SOLVER_TRIANGULATED, PromotionTier.BENCH_CALIBRATED)
     assert assessment.requirements["external_solver_validation"] is True
+
+
+def test_assess_deposit_calibrated_with_measured_ore() -> None:
+    """Deposit tier sits above fdfd_optimised when validated measured ore ε is on the manifest."""
+    rows = [
+        SolverRow("untuned", 0.54),
+        SolverRow("tpe_best", 0.62),
+    ]
+    gate = evaluate_gate(rows, GateThresholds(min_fdfd_improvement=0.01))
+    ore_block = {
+        "materials_mode": "measured",
+        "measured_dielectrics": {
+            "path": "data/measured_dielectrics/example.json",
+            "dataset": {"dataset_id": "lab_v1", "phases": {"target": {}, "gangue": {}}},
+        },
+    }
+    assessment = assess_promotion(
+        benchmarks_passed=True,
+        gate=gate,
+        triangulation_rows=rows,
+        ore_block=ore_block,
+    )
+    assert assessment.tier == PromotionTier.DEPOSIT_CALIBRATED
+    assert assessment.requirements["deposit_measured_eps"] is True
+    assert not assessment.requirements["external_solver_validation"]
+
+    bruggeman_ore = {"materials_mode": "bruggeman", "measured_dielectrics": {}}
+    assessment2 = assess_promotion(
+        benchmarks_passed=True,
+        gate=gate,
+        triangulation_rows=rows,
+        ore_block=bruggeman_ore,
+    )
+    assert assessment2.tier == PromotionTier.FDFD_OPTIMISED
+    assert assessment2.requirements["deposit_measured_eps"] is False

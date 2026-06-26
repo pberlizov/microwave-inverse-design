@@ -48,22 +48,18 @@ class PhaseDielectricDataset:
             raise ValueError(f"phase {self.label!r} has no points")
 
         moist_values = sorted({p.moisture_wt_percent for p in pts if p.moisture_wt_percent is not None})
+        if moist_values and moisture_wt_percent is not None and len(moist_values) >= 2:
+            eps_by_m = [
+                (m, _eps_at_temp_freq([p for p in pts if p.moisture_wt_percent == m], temp_K, freq_hz))
+                for m in moist_values
+            ]
+            return _interp_moisture(eps_by_m, moisture_wt_percent)
+
         if moist_values and moisture_wt_percent is not None:
             m_near = min(moist_values, key=lambda m: abs(m - moisture_wt_percent))
             pts = [p for p in pts if p.moisture_wt_percent == m_near]
 
-        # Interpolate in frequency by interpolating in temperature at the two nearest frequencies.
-        freqs = sorted({p.freq_hz for p in pts})
-        if len(freqs) == 1:
-            return _interp_temp([p for p in pts if p.freq_hz == freqs[0]], temp_K)
-
-        f0, f1 = _bracket(freq_hz, freqs)
-        e0 = _interp_temp([p for p in pts if p.freq_hz == f0], temp_K)
-        e1 = _interp_temp([p for p in pts if p.freq_hz == f1], temp_K)
-        if abs(f1 - f0) < 1e-12:
-            return e0
-        t = float(np.clip((freq_hz - f0) / (f1 - f0), 0.0, 1.0))
-        return (1.0 - t) * e0 + t * e1
+        return _eps_at_temp_freq(pts, temp_K, freq_hz)
 
 
 @dataclass(frozen=True)
@@ -72,6 +68,8 @@ class MeasuredDielectricLibrary:
 
     phases: dict[str, PhaseDielectricDataset]
     description: str = ""
+    dataset_id: str = ""
+    version: str = ""
 
     def eps(
         self,
@@ -87,6 +85,28 @@ class MeasuredDielectricLibrary:
             temp_K=temp_K, freq_hz=freq_hz, moisture_wt_percent=moisture_wt_percent,
         )
 
+    def summary(self) -> dict[str, object]:
+        """Compact metadata for manifests and ingest reports."""
+        phases: dict[str, object] = {}
+        for label, phase in sorted(self.phases.items()):
+            temps = sorted({p.temp_K for p in phase.points})
+            freqs = sorted({p.freq_hz for p in phase.points})
+            moist = sorted({p.moisture_wt_percent for p in phase.points if p.moisture_wt_percent is not None})
+            sources = sorted({p.source for p in phase.points if p.source})
+            phases[label] = {
+                "n_points": len(phase.points),
+                "temp_K_range": [temps[0], temps[-1]] if temps else [],
+                "freq_hz_range": [freqs[0], freqs[-1]] if freqs else [],
+                "moisture_wt_percent_levels": moist,
+                "sources": sources,
+            }
+        return {
+            "dataset_id": self.dataset_id,
+            "version": self.version,
+            "description": self.description,
+            "phases": phases,
+        }
+
 
 def load_measured_dielectrics(path: Path | str) -> MeasuredDielectricLibrary:
     """Load measured dielectrics from JSON.
@@ -98,6 +118,8 @@ def load_measured_dielectrics(path: Path | str) -> MeasuredDielectricLibrary:
     """
     data = json.loads(Path(path).read_text())
     description = str(data.get("description", "")) if isinstance(data, dict) else ""
+    dataset_id = str(data.get("dataset_id", "")) if isinstance(data, dict) else ""
+    version = str(data.get("version", "")) if isinstance(data, dict) else ""
 
     phases_block = data.get("phases") if isinstance(data, dict) and "phases" in data else data
     phases: dict[str, PhaseDielectricDataset] = {}
@@ -120,7 +142,12 @@ def load_measured_dielectrics(path: Path | str) -> MeasuredDielectricLibrary:
 
     if not phases:
         raise ValueError("no phases found in measured dielectrics JSON")
-    return MeasuredDielectricLibrary(phases=phases, description=description)
+    return MeasuredDielectricLibrary(
+        phases=phases,
+        description=description,
+        dataset_id=dataset_id,
+        version=version,
+    )
 
 
 def validate_library(lib: MeasuredDielectricLibrary) -> list[str]:
@@ -152,6 +179,44 @@ def _parse_point(d: dict) -> MeasuredDielectricPoint:
         source=str(d.get("source", "")),
         notes=str(d.get("notes", "")),
     )
+
+
+def _eps_at_temp_freq(points: list[MeasuredDielectricPoint], temp_K: float, freq_hz: float) -> complex:
+    """Interpolate ε in T at bracketed frequencies, then in f."""
+    if not points:
+        raise ValueError("no points for (T, f) interpolation")
+    freqs = sorted({p.freq_hz for p in points})
+    if len(freqs) == 1:
+        return _interp_temp([p for p in points if p.freq_hz == freqs[0]], temp_K)
+
+    f0, f1 = _bracket(freq_hz, freqs)
+    e0 = _interp_temp([p for p in points if p.freq_hz == f0], temp_K)
+    e1 = _interp_temp([p for p in points if p.freq_hz == f1], temp_K)
+    if abs(f1 - f0) < 1e-12:
+        return e0
+    t = float(np.clip((freq_hz - f0) / (f1 - f0), 0.0, 1.0))
+    return (1.0 - t) * e0 + t * e1
+
+
+def _interp_moisture(eps_by_m: list[tuple[float, complex]], moisture_wt_percent: float) -> complex:
+    """Linear interpolation in moisture between measured levels."""
+    if not eps_by_m:
+        raise ValueError("empty moisture table")
+    if len(eps_by_m) == 1:
+        return eps_by_m[0][1]
+    levels = sorted(eps_by_m, key=lambda x: x[0])
+    ms = [m for m, _ in levels]
+    if moisture_wt_percent <= ms[0]:
+        return levels[0][1]
+    if moisture_wt_percent >= ms[-1]:
+        return levels[-1][1]
+    for (m0, e0), (m1, e1) in zip(levels[:-1], levels[1:], strict=False):
+        if m0 <= moisture_wt_percent <= m1:
+            if abs(m1 - m0) < 1e-12:
+                return e0
+            t = (moisture_wt_percent - m0) / (m1 - m0)
+            return (1.0 - t) * e0 + t * e1
+    return levels[-1][1]
 
 
 def _interp_temp(points: list[MeasuredDielectricPoint], temp_K: float) -> complex:

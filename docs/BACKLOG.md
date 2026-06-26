@@ -14,7 +14,7 @@ Conventions:
 
 1. **M1 — Solver-triangulated** (reach `solver_triangulated` tier consistently) — **one-command path done** (`--run-openems` / `--synthesize-openems-dumps`)
 2. **M2 — Bench-calibrated** (reach `bench_calibrated` on gel phantoms) — **pipeline path done** (`--phantom`, `--measured-eps`, `--lab-measurements`, `evaluate_bench_gate`)
-3. **M3 — Deposit-calibrated** (new tier: measured ore ε(f,T,moisture) + validation)
+3. **M3 — Deposit-calibrated** (new tier: measured ore ε(f,T,moisture) + validation) — **done** (`DEPOSIT_CALIBRATED` tier, `--ore` manifest block)
 4. **M4 — Pilot-ready** (new tier: safety constraints + repeatability + throughput metrics)
 
 ## Backlog mapping (deferred from “ports + productization” scope)
@@ -130,8 +130,9 @@ Done when:
 **Status (partial):** ``optuna_multi_search`` maximises selectivity + ``coupling_eff``;
 ``pareto_recommend()`` weighted picker; ``--check-arcing`` filters risky trials.
 ``scripts/run_multi_search.py`` writes Pareto front + recommendation JSON.
+Pipeline: ``--multi-objective`` maps Pareto recommendation into ``tpe_search`` for gate/export.
 
-**Remaining:** hotspot ΔT constraint; wire multi-objective winner into pipeline export.
+**Remaining:** hotspot ΔT constraint in multi-objective loop.
 
 Implementation steps:
 1. Add objectives/constraints:
@@ -158,6 +159,12 @@ Done when:
 ## Epic D — Materials: from cited anchors to measured ore (industry blocker)
 
 ### D0 (P0) Measured ore dielectric ingest (freq, temperature, moisture)
+
+**Status (done):** JSON schema in `measured_dielectrics.py` with ε(f,T,moisture) interpolation;
+`data/measured_dielectrics/<deposit>.json` example dataset; ore JSON `measured_dielectrics.path`
+(relative to ore file); `materials_from_ore()` prefers measured curves; pipeline/search
+`--ore-*` eval knobs; `scripts/ingest_deposit.py`; manifest provenance via `ore_summary`.
+
 Implementation steps:
 1. Define a data schema (JSON/CSV) for measured ε(f,T,moisture) for ore + gangue.
 2. Add ingest tooling (`scripts/ingest_*`) to validate units, interpolate, and version data.

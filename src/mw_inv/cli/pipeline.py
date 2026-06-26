@@ -27,8 +27,23 @@ from mw_inv.promotion import PromotionTier, meets_tier
 from mw_inv.provenance import default_provenance
 from mw_inv.run_manifest import RunManifest, default_run_dir
 from mw_inv.run_refresh import apply_triangulation_refresh
-from mw_inv.search import best, evaluate_params, optuna_search, random_search, top_k_trials, trial_to_dict
+from mw_inv.search import (
+    best,
+    evaluate_params,
+    multi_trial_to_dict,
+    optuna_multi_search,
+    optuna_search,
+    pareto_best_coupling,
+    pareto_best_selectivity,
+    pareto_front_trials,
+    pareto_recommend,
+    random_search,
+    top_k_multi_trials,
+    top_k_trials,
+    trial_to_dict,
+)
 from mw_inv.validation_gate import GateThresholds
+from mw_inv.rf_port_report import build_port_report
 
 
 def _robustness_block(
@@ -245,10 +260,91 @@ def _run_search(
     return summary
 
 
+def _run_multi_search(
+    grid: Grid,
+    materials: Materials,
+    *,
+    trials: int,
+    seed: int,
+    legacy: bool,
+    base_params: CavityParams | None = None,
+    store_top_k: int = 0,
+    check_arcing: bool = False,
+    weight_selectivity: float = 0.6,
+    weight_coupling: float = 0.4,
+) -> dict:
+    """Multi-objective search; maps Pareto recommendation into tpe_search for gate/export."""
+    params0 = base_params or CavityParams()
+    base = evaluate_params(grid, params0, materials, legacy=legacy)
+    t0 = time.time()
+    multi_trials, study = optuna_multi_search(
+        grid,
+        trials,
+        seed,
+        base=params0,
+        materials=materials,
+        legacy=legacy,
+        check_arcing=check_arcing,
+    )
+    elapsed = time.time() - t0
+    recommended = pareto_recommend(
+        multi_trials,
+        study,
+        weight_selectivity=weight_selectivity,
+        weight_coupling=weight_coupling,
+        exclude_arcing=check_arcing,
+    )
+    best_sel = pareto_best_selectivity(multi_trials)
+    best_coupling = pareto_best_coupling(multi_trials)
+    pareto = pareto_front_trials(multi_trials, study)
+    summary = {
+        "trials": trials,
+        "seed": seed,
+        "materials": materials.pair_label or "custom",
+        "search_mode": "multi_objective",
+        "baseline_untuned": {
+            "selectivity": base.selectivity,
+            "contrast": base.contrast,
+            "coupling_eff": base.coupling_eff,
+        },
+        "tpe_search": {
+            "best_selectivity": recommended.selectivity,
+            "best_contrast": recommended.contrast,
+            "best_params": recommended.params,
+            "coupling_eff": recommended.coupling_eff,
+            "seconds": round(elapsed, 1),
+            "source": "pareto_recommend",
+        },
+        "multi_search": {
+            "objectives": ["em_selectivity", "coupling_eff"],
+            "check_arcing": check_arcing,
+            "weights": {
+                "selectivity": weight_selectivity,
+                "coupling": weight_coupling,
+            },
+            "recommended": multi_trial_to_dict(recommended),
+            "best_selectivity": multi_trial_to_dict(best_sel),
+            "best_coupling": multi_trial_to_dict(best_coupling),
+            "pareto_count": len(pareto),
+            "pareto_front": [multi_trial_to_dict(t) for t in pareto[:12]],
+        },
+    }
+    if store_top_k > 0:
+        summary["tpe_top_k"] = [
+            multi_trial_to_dict(t) for t in top_k_multi_trials(multi_trials, store_top_k)
+        ]
+        summary["openems_top_k"] = store_top_k
+    return summary
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description="Tier-1 promotion pipeline")
     ap.add_argument("--materials", choices=sorted(PAIRS), default=None)
     ap.add_argument("--ore", type=str, default=None, help="QEMSCAN/assay ore JSON (data/ores/)")
+    ap.add_argument("--ore-target-t", type=float, default=None, help="target phase T [K] for measured ε")
+    ap.add_argument("--ore-gangue-t", type=float, default=None, help="gangue phase T [K] for measured ε")
+    ap.add_argument("--ore-freq", type=float, default=None, help="frequency [Hz] for measured ε (default 2.45e9)")
+    ap.add_argument("--ore-moisture", type=float, default=None, help="moisture wt%% for measured ε")
     ap.add_argument("--preset", default="em")
     ap.add_argument("--trials", type=int, default=24)
     ap.add_argument("--grid", type=int, default=71)
@@ -272,6 +368,12 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--lab-measurements", default=None, help="bench measurements JSON for phantom compare")
     ap.add_argument("--bench-study", action="store_true", help="run phantom prediction/compare step")
     ap.add_argument("--bench-enforce", action="store_true", help="fail pipeline if bench gate fails")
+    ap.add_argument("--vna-unloaded-s1p", default=None, help="Touchstone .s1p for unloaded cavity S11")
+    ap.add_argument("--vna-loaded-s1p", default=None, help="Touchstone .s1p for loaded cavity/charge S11")
+    ap.add_argument("--vna-freq", type=float, default=2.45e9, help="evaluation frequency for VNA summary (Hz)")
+    ap.add_argument("--vna-band-lo", type=float, default=None, help="optional band low edge (Hz)")
+    ap.add_argument("--vna-band-hi", type=float, default=None, help="optional band high edge (Hz)")
+    ap.add_argument("--vna-openems-port-metrics", default=None, help="optional openEMS port_metrics.json for S11 compare")
     ap.add_argument("--bench-grid", type=int, default=61)
     ap.add_argument("--bench-trials", type=int, default=12)
     ap.add_argument("--bench-seed", type=int, default=7701)
@@ -289,6 +391,18 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--robust-floor", type=float, default=0.0, help="minimum acceptable robust min selectivity")
     ap.add_argument("--robust-min-improvement", type=float, default=0.0, help="minimum robust min-selectivity improvement vs untuned")
     ap.add_argument("--legacy", action="store_true")
+    ap.add_argument(
+        "--multi-objective",
+        action="store_true",
+        help="Pareto search: selectivity × coupling_eff (recommended → tpe_search slot)",
+    )
+    ap.add_argument(
+        "--check-arcing",
+        action="store_true",
+        help="with --multi-objective: penalise/filter arcing-risk trials",
+    )
+    ap.add_argument("--weight-selectivity", type=float, default=0.6, help="multi-objective Pareto pick weight")
+    ap.add_argument("--weight-coupling", type=float, default=0.4, help="multi-objective Pareto pick weight")
     ap.add_argument("--openems-dump-dir", default=None, help="openEMS dump root (expects <case>/Et/Et_0000.h5)")
     ap.add_argument(
         "--openems-top-k",
@@ -347,10 +461,27 @@ def main(argv: list[str] | None = None) -> None:
     base_params = CavityParams()
 
     if args.ore:
-        ore = load_ore_profile(args.ore)
-        materials = materials_from_ore(ore)
+        ore_path = Path(args.ore)
+        ore = load_ore_profile(ore_path)
+        ore_kw = dict(
+            ore_profile_path=ore_path,
+            target_T_K=args.ore_target_t if args.ore_target_t is not None else 298.0,
+            gangue_T_K=args.ore_gangue_t if args.ore_gangue_t is not None else 298.0,
+            freq_hz=args.ore_freq if args.ore_freq is not None else 2.45e9,
+            moisture_wt_percent=args.ore_moisture,
+        )
+        materials = materials_from_ore(ore, **ore_kw)
         base_params = cavity_params_from_ore(ore, cavity_span_m=grid.Lx)
-        ore_block = {**ore_summary(ore), "json_path": str(args.ore)}
+        ore_block = {
+            **ore_summary(ore, **ore_kw),
+            "json_path": str(ore_path.resolve()),
+            "eval_conditions": {
+                "target_T_K": ore_kw["target_T_K"],
+                "gangue_T_K": ore_kw["gangue_T_K"],
+                "freq_hz": ore_kw["freq_hz"],
+                "moisture_wt_percent": ore_kw["moisture_wt_percent"],
+            },
+        }
         materials_label = materials.pair_label or "custom"
     else:
         materials_label = args.materials or DEFAULT_PAIR.label
@@ -380,6 +511,22 @@ def main(argv: list[str] | None = None) -> None:
             bench_seed=args.bench_seed,
             run_study=bool(args.bench_study),
         )
+    if args.vna_unloaded_s1p:
+        rf_report = build_port_report(
+            unloaded_s1p=args.vna_unloaded_s1p,
+            loaded_s1p=args.vna_loaded_s1p,
+            openems_port_metrics=args.vna_openems_port_metrics,
+            freq_hz=args.vna_freq,
+            band_lo_hz=args.vna_band_lo,
+            band_hi_hz=args.vna_band_hi,
+        )
+        rf_path = run_dir / "rf_port_report.json"
+        rf_path.write_text(json.dumps(rf_report.to_dict(), indent=2))
+        manifest.bench.setdefault("rf", {})
+        manifest.bench["rf"]["rf_port_report_path"] = str(rf_path)
+        manifest.bench["rf"]["unloaded_s11_mag"] = rf_report.unloaded.get("s11_mag")
+        if rf_report.loaded is not None:
+            manifest.bench["rf"]["loaded_s11_mag"] = rf_report.loaded.get("s11_mag")
 
     # --- benchmarks ---
     if not args.skip_benchmarks:
@@ -397,23 +544,39 @@ def main(argv: list[str] | None = None) -> None:
         manifest.search_path = str(search_path)
         print(f"  search: reused {search_path}")
     else:
-        manifest.search_summary = _run_search(
-            grid,
-            materials,
-            trials=args.trials,
-            seed=args.seed,
-            legacy=args.legacy,
-            base_params=base_params,
-            store_top_k=args.openems_top_k,
-        )
+        if args.multi_objective:
+            manifest.search_summary = _run_multi_search(
+                grid,
+                materials,
+                trials=args.trials,
+                seed=args.seed,
+                legacy=args.legacy,
+                base_params=base_params,
+                store_top_k=args.openems_top_k,
+                check_arcing=args.check_arcing,
+                weight_selectivity=args.weight_selectivity,
+                weight_coupling=args.weight_coupling,
+            )
+            sel = manifest.search_summary["tpe_search"]["best_selectivity"]
+            print(f"  search: multi-objective pareto sel={sel:.4f} -> {search_path}")
+        else:
+            manifest.search_summary = _run_search(
+                grid,
+                materials,
+                trials=args.trials,
+                seed=args.seed,
+                legacy=args.legacy,
+                base_params=base_params,
+                store_top_k=args.openems_top_k,
+            )
+            print(
+                f"  search: TPE sel={manifest.search_summary['tpe_search']['best_selectivity']:.4f} -> {search_path}"
+            )
         manifest.search_summary["grid"] = args.grid
         if ore_block:
             manifest.search_summary["ore"] = ore_block
         search_path.write_text(json.dumps(manifest.search_summary, indent=2))
         manifest.search_path = str(search_path)
-        print(
-            f"  search: TPE sel={manifest.search_summary['tpe_search']['best_selectivity']:.4f} -> {search_path}"
-        )
 
     # --- evaluation snapshot (untuned + TPE best) ---
     ev = DesignEvaluator.from_preset(grid, args.preset, materials=materials, pair_label=materials_label)

@@ -38,7 +38,8 @@ def test_measured_dielectrics_interp_temp_and_freq(tmp_path: Path) -> None:
     assert abs(e2.imag - 1.25) < 1e-9
 
 
-def test_measured_dielectrics_nearest_moisture(tmp_path: Path) -> None:
+def test_measured_dielectrics_nearest_moisture_single_level(tmp_path: Path) -> None:
+    """With only two discrete moisture levels, mid-moisture is interpolated."""
     path = tmp_path / "eps.json"
     payload = {
         "phases": {
@@ -50,8 +51,10 @@ def test_measured_dielectrics_nearest_moisture(tmp_path: Path) -> None:
     }
     path.write_text(json.dumps(payload))
     lib = load_measured_dielectrics(path)
-    e_dry = lib.eps("ore_bulk", temp_K=298, freq_hz=2.45e9, moisture_wt_percent=0.2)
-    e_wet = lib.eps("ore_bulk", temp_K=298, freq_hz=2.45e9, moisture_wt_percent=1.9)
+    e_dry = lib.eps("ore_bulk", temp_K=298, freq_hz=2.45e9, moisture_wt_percent=0.0)
+    e_wet = lib.eps("ore_bulk", temp_K=298, freq_hz=2.45e9, moisture_wt_percent=2.0)
+    e_mid = lib.eps("ore_bulk", temp_K=298, freq_hz=2.45e9, moisture_wt_percent=1.0)
     assert abs(e_dry.real - 5.0) < 1e-9
     assert abs(e_wet.real - 7.0) < 1e-9
+    assert abs(e_mid.real - 6.0) < 1e-9
 

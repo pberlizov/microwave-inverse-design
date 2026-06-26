@@ -28,8 +28,9 @@ def main() -> None:
     args = ap.parse_args()
 
     ore = load_ore_profile(args.ore_json)
-    summary = ore_summary(ore)
-    mats = materials_from_ore(ore)
+    ore_path = Path(args.ore_json)
+    summary = ore_summary(ore, ore_profile_path=ore_path)
+    mats = materials_from_ore(ore, ore_profile_path=ore_path)
     params = cavity_params_from_ore(ore)
     report = {
         **summary,

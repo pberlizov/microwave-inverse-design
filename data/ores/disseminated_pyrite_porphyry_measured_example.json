@@ -12,7 +12,7 @@
     "mean_grain_radius_m": 0.0025
   },
   "measured_dielectrics": {
-    "path": "data/templates/measured_dielectrics.template.json",
+    "path": "../measured_dielectrics/disseminated_pyrite_porphyry_deposit.json",
     "target_phase": "target",
     "gangue_phase": "gangue",
     "moisture_wt_percent": 0.0

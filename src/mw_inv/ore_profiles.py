@@ -117,9 +117,14 @@ _GANGUE_LABEL_MAP: dict[str, str] = {
 
 def load_ore_profile(path: Path | str) -> OreComposition:
     """Load a deposit ore profile from JSON (QEMSCAN / assay modal analysis)."""
-    data = json.loads(Path(path).read_text())
+    ore_path = Path(path)
+    data = json.loads(ore_path.read_text())
     if "label" not in data or "fractions" not in data:
         raise ValueError("ore JSON must include 'label' and 'fractions'")
+
+    measured_block = data.get("measured_dielectrics")
+    if measured_block is not None:
+        _validate_measured_dielectrics_block(measured_block)
 
     texture: OreTexture | None = None
     if data.get("texture"):
@@ -139,6 +144,31 @@ def load_ore_profile(path: Path | str) -> OreComposition:
         source=data.get("source"),
         measured_dielectrics=data.get("measured_dielectrics"),
     )
+
+
+def _validate_measured_dielectrics_block(block: object) -> None:
+    if not isinstance(block, dict):
+        raise ValueError("measured_dielectrics must be an object")
+    if not block.get("path"):
+        raise ValueError("measured_dielectrics.path is required")
+
+
+def resolve_measured_dielectrics_path(
+    ore_profile_path: Path | str,
+    measured_block: dict,
+) -> Path:
+    """Resolve measured ε JSON relative to ore profile dir, then cwd."""
+    raw = measured_block.get("path")
+    if not raw:
+        raise ValueError("measured_dielectrics.path is required")
+    p = Path(str(raw))
+    if p.is_file():
+        return p.resolve()
+    ore_dir = Path(ore_profile_path).resolve().parent
+    for candidate in (ore_dir / p, Path.cwd() / p):
+        if candidate.is_file():
+            return candidate.resolve()
+    raise FileNotFoundError(f"measured dielectrics path not found: {raw}")
 
 
 def dominant_hmap(ore: OreComposition) -> str | None:
@@ -216,7 +246,15 @@ def cavity_params_from_ore(
     return p
 
 
-def ore_summary(ore: OreComposition) -> dict[str, object]:
+def ore_summary(
+    ore: OreComposition,
+    *,
+    ore_profile_path: Path | str | None = None,
+    target_T_K: float = 298.0,
+    gangue_T_K: float = 298.0,
+    freq_hz: float = 2.45e9,
+    moisture_wt_percent: float | None = None,
+) -> dict[str, object]:
     """Compact report dict for ingest CLI and pipeline manifests."""
     from mw_inv.mineral_catalog import loss_contrast
 
@@ -224,17 +262,42 @@ def ore_summary(ore: OreComposition) -> dict[str, object]:
     gangue = infer_gangue_mineral(ore)
     target, pair_gangue = PAIR_MINERALS[pair]
     measured = ore.measured_dielectrics or {}
-    measured_path = measured.get("path")
     mode = "bruggeman"
     measured_detail: dict | None = None
-    if measured_path and Path(measured_path).is_file():
-        mode = "measured"
-        measured_detail = {
-            "path": measured_path,
-            "target_phase": measured.get("target_phase"),
-            "gangue_phase": measured.get("gangue_phase"),
-            "moisture_wt_percent": measured.get("moisture_wt_percent"),
-        }
+    if measured.get("path"):
+        try:
+            mp = resolve_measured_dielectrics_path(ore_profile_path or ".", measured)
+            lib = load_measured_dielectrics(mp)
+            issues = validate_library(lib)
+            moisture = moisture_wt_percent
+            if moisture is None and measured.get("moisture_wt_percent") is not None:
+                moisture = float(measured["moisture_wt_percent"])
+            target_phase = str(measured.get("target_phase", "target"))
+            gangue_phase = str(measured.get("gangue_phase", "gangue"))
+            mode = "measured"
+            measured_detail = {
+                "path": str(mp),
+                "target_phase": target_phase,
+                "gangue_phase": gangue_phase,
+                "moisture_wt_percent": moisture,
+                "dataset": lib.summary(),
+                "eval": {
+                    "target_T_K": target_T_K,
+                    "gangue_T_K": gangue_T_K,
+                    "freq_hz": freq_hz,
+                    "target_eps": [
+                        lib.eps(target_phase, temp_K=target_T_K, freq_hz=freq_hz, moisture_wt_percent=moisture).real,
+                        lib.eps(target_phase, temp_K=target_T_K, freq_hz=freq_hz, moisture_wt_percent=moisture).imag,
+                    ],
+                    "gangue_eps": [
+                        lib.eps(gangue_phase, temp_K=gangue_T_K, freq_hz=freq_hz, moisture_wt_percent=moisture).real,
+                        lib.eps(gangue_phase, temp_K=gangue_T_K, freq_hz=freq_hz, moisture_wt_percent=moisture).imag,
+                    ],
+                },
+                "validation_issues": issues,
+            }
+        except (FileNotFoundError, ValueError, KeyError) as exc:
+            measured_detail = {"path": measured.get("path"), "error": str(exc)}
     return {
         "label": ore.label,
         "source": ore.source,
@@ -276,8 +339,10 @@ def materials_from_ore(
     gangue_T_K: float = 298.0,
     freq_hz: float = 2.45e9,
     gangue_mineral: str | None = None,
+    ore_profile_path: Path | str | None = None,
+    moisture_wt_percent: float | None = None,
 ) -> Materials:
-    """Effective target/gangue ε from Bruggeman mixing of ore mineral fractions."""
+    """Effective target/gangue ε from measured curves or Bruggeman mixing."""
     pair_label = pair_fallback or suggest_material_pair(ore)
     pair = PAIRS.get(pair_label)
     if pair is None:
@@ -287,29 +352,28 @@ def materials_from_ore(
 
     # Deposit/batch specific measured ε overrides mixing models.
     measured = ore.measured_dielectrics or {}
-    measured_path = measured.get("path")
-    if measured_path:
-        mp = Path(measured_path)
-        if not mp.is_file():
-            raise FileNotFoundError(f"measured dielectrics path not found: {measured_path}")
-        lib = load_measured_dielectrics(measured_path)
+    if measured.get("path"):
+        mp = resolve_measured_dielectrics_path(ore_profile_path or ".", measured)
+        lib = load_measured_dielectrics(mp)
         issues = validate_library(lib)
         if issues:
             raise ValueError(f"invalid measured dielectrics: {issues[0]}")
-        moisture = measured.get("moisture_wt_percent")
+        moisture = moisture_wt_percent
+        if moisture is None and measured.get("moisture_wt_percent") is not None:
+            moisture = float(measured["moisture_wt_percent"])
         target_phase = measured.get("target_phase", "target")
         gangue_phase = measured.get("gangue_phase", "gangue")
         t_eps = lib.eps(
             str(target_phase),
             temp_K=target_T_K,
             freq_hz=freq_hz,
-            moisture_wt_percent=(None if moisture is None else float(moisture)),
+            moisture_wt_percent=moisture,
         )
         g_eps = lib.eps(
             str(gangue_phase),
             temp_K=gangue_T_K,
             freq_hz=freq_hz,
-            moisture_wt_percent=(None if moisture is None else float(moisture)),
+            moisture_wt_percent=moisture,
         )
         return Materials(
             background=pair.background,

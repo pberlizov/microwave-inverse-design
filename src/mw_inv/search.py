@@ -618,6 +618,37 @@ def pareto_recommend(
     return max(front, key=lambda t: ws * t.selectivity + wc * t.coupling_eff)
 
 
+def multi_trial_to_dict(trial: MultiTrial) -> dict:
+    return {
+        "selectivity": trial.selectivity,
+        "coupling_eff": trial.coupling_eff,
+        "p_total": trial.p_total,
+        "contrast": trial.contrast,
+        "arcing_risk": trial.arcing_risk,
+        "params": trial.params,
+    }
+
+
+def top_k_multi_trials(trials: list[MultiTrial], k: int) -> list[MultiTrial]:
+    """Rank multi-objective trials by selectivity for openEMS pre-screen export."""
+    if k <= 0:
+        return []
+    import json as _json
+
+    ranked = sorted(trials, key=lambda t: t.selectivity, reverse=True)
+    out: list[MultiTrial] = []
+    seen: set[str] = set()
+    for trial in ranked:
+        key = _json.dumps(trial.params, sort_keys=True, default=str)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(trial)
+        if len(out) >= k:
+            break
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Frequency-robust search: stable selectivity across ISM band (step 7-lite)
 # ---------------------------------------------------------------------------

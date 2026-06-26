@@ -4,6 +4,7 @@ Tiers (cumulative requirements):
 
   literature_grounded  — benchmark suite passes (materials forward model)
   fdfd_optimised       — validation gate passes (optimised beats untuned on FDFD)
+  deposit_calibrated   — named deposit with validated measured ore ε(f,T,moisture)
   solver_triangulated  — external solver data present and gate solver checks pass
   bench_calibrated     — phantom probe ε drift within tolerance (optional bench JSON)
 """
@@ -24,6 +25,7 @@ class PromotionTier(str, Enum):
     UNRANKED = "unranked"
     LITERATURE_GROUNDED = "literature_grounded"
     FDFD_OPTIMISED = "fdfd_optimised"
+    DEPOSIT_CALIBRATED = "deposit_calibrated"
     SOLVER_TRIANGULATED = "solver_triangulated"
     BENCH_CALIBRATED = "bench_calibrated"
 
@@ -32,6 +34,7 @@ TIER_ORDER: tuple[PromotionTier, ...] = (
     PromotionTier.UNRANKED,
     PromotionTier.LITERATURE_GROUNDED,
     PromotionTier.FDFD_OPTIMISED,
+    PromotionTier.DEPOSIT_CALIBRATED,
     PromotionTier.SOLVER_TRIANGULATED,
     PromotionTier.BENCH_CALIBRATED,
 )
@@ -151,11 +154,30 @@ def _bench_calibration_ok(
     return True
 
 
+def _deposit_calibration_ok(ore_block: dict | None) -> bool:
+    """Deposit tier: pipeline run used validated measured ore ε, not Bruggeman-only."""
+    if not ore_block:
+        return False
+    if ore_block.get("materials_mode") != "measured":
+        return False
+    md = ore_block.get("measured_dielectrics") or {}
+    if md.get("error"):
+        return False
+    issues = md.get("validation_issues") or []
+    if issues:
+        return False
+    if not md.get("path"):
+        return False
+    dataset = md.get("dataset") or {}
+    return bool(dataset.get("dataset_id") or dataset.get("phases"))
+
+
 def assess_promotion(
     *,
     benchmarks_passed: bool | None = None,
     gate: ValidationGateReport | None = None,
     triangulation_rows: list[Any] | None = None,
+    ore_block: dict | None = None,
     phantom_label: str | None = None,
     measured_eps_path: str | None = None,
     lab_measurements_path: str | None = None,
@@ -164,6 +186,7 @@ def assess_promotion(
 
     lit = benchmarks_passed is True
     fdfd = lit and gate is not None and gate.passed
+    deposit_ok = fdfd and _deposit_calibration_ok(ore_block)
     has_ext = _external_solver_data_present(triangulation_rows)
     solver_ok = fdfd and has_ext and _solver_gate_checks_ok(gate)
     bench_ok = solver_ok and _bench_calibration_ok(
@@ -175,12 +198,15 @@ def assess_promotion(
     reqs = {
         "literature_benchmarks": lit,
         "fdfd_gate": fdfd,
+        "deposit_measured_eps": deposit_ok,
         "external_solver_validation": solver_ok,
         "bench_phantom_calibration": bench_ok,
     }
     notes: list[str] = []
     if fdfd and not has_ext:
-        notes.append("solver_triangulated requires MEEP/openEMS data — tier capped at fdfd_optimised")
+        notes.append("solver_triangulated requires MEEP/openEMS data — tier capped below solver")
+    if fdfd and ore_block and ore_block.get("materials_mode") != "measured":
+        notes.append("deposit_calibrated requires --ore with validated measured_dielectrics")
     if solver_ok and not bench_ok:
         notes.append("bench_calibrated requires measured_eps.json within drift tolerance")
 
@@ -188,6 +214,8 @@ def assess_promotion(
         tier = PromotionTier.BENCH_CALIBRATED
     elif solver_ok:
         tier = PromotionTier.SOLVER_TRIANGULATED
+    elif deposit_ok:
+        tier = PromotionTier.DEPOSIT_CALIBRATED
     elif fdfd:
         tier = PromotionTier.FDFD_OPTIMISED
     elif lit:
@@ -207,6 +235,7 @@ def tier_from_manifest(manifest: dict[str, Any]) -> PromotionTier:
         benchmarks_passed=manifest.get("benchmarks", {}).get("passed"),
         gate=_gate_from_dict(manifest.get("gate")),
         triangulation_rows=_rows_from_dict(manifest.get("triangulation", {})),
+        ore_block=manifest.get("ore"),
         phantom_label=manifest.get("bench", {}).get("phantom_label"),
         measured_eps_path=manifest.get("bench", {}).get("measured_eps_path"),
         lab_measurements_path=manifest.get("bench", {}).get("lab_measurements_path"),

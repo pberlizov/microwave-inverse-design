@@ -48,11 +48,18 @@ Build cavity using `optimized_params` from manifest JSON (feed_wall, stub_depth_
 |------|--------|
 | A | Untuned geometry baseline — record ΔT(target−gangue) at 60–120 s |
 | B | Optimised geometry — same gel batch, same forward power |
-| C | Optional: S11 at port before/after loading charge |
+| C | Optional: S11 at port before/after loading charge (VNA) |
 | D | Save JSON per [lab_measurements.example.json](../data/lab_measurements.example.json) |
 
 ```bash
 python3 scripts/run_phantom_study.py --phantom saline_2_vs_0.5 --compare data/lab_measurements.json
+```
+
+Optional: turn VNA Touchstone traces into a compact report (for manifests / QA):
+
+```bash
+python3 scripts/ingest_vna_s11.py --unloaded data/vna/unloaded.s1p --loaded data/vna/loaded.s1p --out data/vna_s11_report.json
+python3 scripts/build_rf_port_report.py --unloaded-s1p data/vna/unloaded.s1p --loaded-s1p data/vna/loaded.s1p --out data/rf_port_report.json
 ```
 
 ## 5. Success criteria

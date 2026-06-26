@@ -39,7 +39,8 @@ def cases_from_search_summary(data: dict, *, top_k: int | None = None) -> list[D
         cases.append(DesignCase("random_best", params_from_dict(rnd), "search_summary:random"))
     tpe = data.get("tpe_search", {}).get("best_params")
     if tpe:
-        cases.append(DesignCase("tpe_best", params_from_dict(tpe), "search_summary:tpe"))
+        src = "search_summary:pareto" if data.get("search_mode") == "multi_objective" else "search_summary:tpe"
+        cases.append(DesignCase("tpe_best", params_from_dict(tpe), src))
     return cases
 
 
