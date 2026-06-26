@@ -1,14 +1,21 @@
 __pycache__/
 *.pyc
+*.egg-info/
 .venv/
 .pytest_cache/
 .ruff_cache/
 .DS_Store
-# Generated experiment artifacts (re-creatable via scripts/).
+
+# --- Generated experiment artifacts (re-creatable via scripts/; see data/README.md) ---
+data/runs/
+data/design_exports/
+
+# Top-level data outputs (figures, summaries, scene dumps).
 data/*.npz
 data/*.png
 data/*.json
+!data/*.example.json
+!data/*.template.json
 
-# Generated directories (large, machine-specific, re-creatable).
-data/runs/
-data/design_exports/
+# Versioned inputs live in data/benchmarks/, data/ores/, data/templates/, and
+# data/*.example.json / data/*.template.json — commit those, not local run outputs.

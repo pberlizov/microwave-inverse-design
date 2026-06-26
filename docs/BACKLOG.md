@@ -235,6 +235,11 @@ Done when:
 - Users can run `pip install -e .` and call `mw-inv-pipeline ...` without path hacks.
 
 ### G1 (P0) Data hygiene: ignore generated artifacts by default
+
+**Status (done):** ``.gitignore`` ignores ``data/runs/``, ``data/design_exports/``, and
+top-level ``data/*.{json,npz,png}`` while keeping ``*.example.json``, ``*.template.json``,
+and ``data/benchmarks|ores|templates/``. See ``data/README.md``.
+
 Implementation steps:
 1. Update `.gitignore` to ignore `data/runs/`, `data/design_exports/`, and other generated dirs.
 2. Add a `data/README.md` describing what’s source vs generated.
